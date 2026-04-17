@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Three.js 3D Visualization</title>
+    <title>Cinematic 3D Visualization</title>
     <style>
         * {
             margin: 0;
@@ -13,15 +13,81 @@
         
         body {
             overflow: hidden;
-            background-color: #1a1a1a;
+            background-color: #0a0a0a;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         
         canvas {
             display: block;
         }
+        
+        #ui-overlay {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            color: #ffffff;
+            pointer-events: none;
+        }
+        
+        #ui-overlay h1 {
+            font-size: 24px;
+            font-weight: 300;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px rgba(0, 150, 255, 0.5);
+        }
+        
+        #ui-overlay p {
+            font-size: 14px;
+            opacity: 0.7;
+            margin-bottom: 5px;
+        }
+        
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #0a0a0a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            transition: opacity 0.5s;
+        }
+        
+        #loading.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .loader {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #0096ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
+    <div id="loading">
+        <div class="loader"></div>
+    </div>
+    
+    <div id="ui-overlay">
+        <h1>CINEMATIC 3D</h1>
+        <p>Click on the knot to interact</p>
+        <p>Move mouse for flashlight effect</p>
+    </div>
+
     <script type="importmap">
         {
             "imports": {
@@ -31,71 +97,498 @@
         }
     </script>
     
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    
     <script type="module">
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+        import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
         
-        let scene, camera, renderer, cube, controls;
+        let scene, camera, renderer, controls;
+        let knot, ground;
+        let spotLight, flashlight;
+        let raycaster, mouse;
+        let composer, bloomPass;
+        let particles = [];
+        let clock;
+        let fresnelMaterial;
+        
+        const mousePosition = new THREE.Vector2();
+        const mouse3D = new THREE.Vector3();
         
         init();
         animate();
         
+        function createCheckerboardTexture() {
+            const size = 512;
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            
+            const tileSize = 64;
+            const tiles = size / tileSize;
+            
+            for (let i = 0; i < tiles; i++) {
+                for (let j = 0; j < tiles; j++) {
+                    const isEven = (i + j) % 2 === 0;
+                    
+                    if (isEven) {
+                        const gradient = ctx.createLinearGradient(
+                            i * tileSize, j * tileSize,
+                            (i + 1) * tileSize, (j + 1) * tileSize
+                        );
+                        gradient.addColorStop(0, '#3a3a3a');
+                        gradient.addColorStop(0.5, '#4a4a4a');
+                        gradient.addColorStop(1, '#3a3a3a');
+                        ctx.fillStyle = gradient;
+                    } else {
+                        const gradient = ctx.createLinearGradient(
+                            i * tileSize, j * tileSize,
+                            (i + 1) * tileSize, (j + 1) * tileSize
+                        );
+                        gradient.addColorStop(0, '#2a2a2a');
+                        gradient.addColorStop(0.5, '#353535');
+                        gradient.addColorStop(1, '#2a2a2a');
+                        ctx.fillStyle = gradient;
+                    }
+                    
+                    ctx.fillRect(i * tileSize, j * tileSize, tileSize, tileSize);
+                    
+                    if (Math.random() > 0.7) {
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.02)';
+                        ctx.fillRect(
+                            i * tileSize + Math.random() * tileSize * 0.5,
+                            j * tileSize + Math.random() * tileSize * 0.5,
+                            tileSize * 0.3,
+                            tileSize * 0.3
+                        );
+                    }
+                }
+            }
+            
+            const roughnessCanvas = document.createElement('canvas');
+            roughnessCanvas.width = size;
+            roughnessCanvas.height = size;
+            const roughnessCtx = roughnessCanvas.getContext('2d');
+            
+            for (let i = 0; i < tiles; i++) {
+                for (let j = 0; j < tiles; j++) {
+                    const isEven = (i + j) % 2 === 0;
+                    const baseRoughness = isEven ? 0.7 : 0.9;
+                    
+                    roughnessCtx.fillStyle = `rgba(${Math.floor(baseRoughness * 255)}, ${Math.floor(baseRoughness * 255)}, ${Math.floor(baseRoughness * 255)}, 1)`;
+                    roughnessCtx.fillRect(i * tileSize, j * tileSize, tileSize, tileSize);
+                    
+                    for (let k = 0; k < 3; k++) {
+                        const x = i * tileSize + Math.random() * tileSize;
+                        const y = j * tileSize + Math.random() * tileSize;
+                        const r = Math.random() * 5 + 2;
+                        
+                        roughnessCtx.beginPath();
+                        roughnessCtx.arc(x, y, r, 0, Math.PI * 2);
+                        roughnessCtx.fillStyle = `rgba(${Math.floor(0.3 * 255)}, ${Math.floor(0.3 * 255)}, ${Math.floor(0.3 * 255)}, 0.5)`;
+                        roughnessCtx.fill();
+                    }
+                }
+            }
+            
+            const metalnessCanvas = document.createElement('canvas');
+            metalnessCanvas.width = size;
+            metalnessCanvas.height = size;
+            const metalnessCtx = metalnessCanvas.getContext('2d');
+            
+            for (let i = 0; i < tiles; i++) {
+                for (let j = 0; j < tiles; j++) {
+                    const isEven = (i + j) % 2 === 0;
+                    const baseMetalness = isEven ? 0.6 : 0.3;
+                    
+                    metalnessCtx.fillStyle = `rgba(${Math.floor(baseMetalness * 255)}, ${Math.floor(baseMetalness * 255)}, ${Math.floor(baseMetalness * 255)}, 1)`;
+                    metalnessCtx.fillRect(i * tileSize, j * tileSize, tileSize, tileSize);
+                }
+            }
+            
+            return {
+                map: new THREE.CanvasTexture(canvas),
+                roughnessMap: new THREE.CanvasTexture(roughnessCanvas),
+                metalnessMap: new THREE.CanvasTexture(metalnessCanvas)
+            };
+        }
+        
+        function createFresnelMaterial() {
+            const vertexShader = `
+                varying vec3 vNormal;
+                varying vec3 vViewPosition;
+                varying vec2 vUv;
+                
+                void main() {
+                    vUv = uv;
+                    vNormal = normalize(normalMatrix * normal);
+                    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                    vViewPosition = -mvPosition.xyz;
+                    gl_Position = projectionMatrix * mvPosition;
+                }
+            `;
+            
+            const fragmentShader = `
+                uniform vec3 baseColor;
+                uniform float roughness;
+                uniform float metalness;
+                uniform float time;
+                uniform float fresnelPower;
+                uniform float fresnelIntensity;
+                uniform vec3 fresnelColor1;
+                uniform vec3 fresnelColor2;
+                
+                varying vec3 vNormal;
+                varying vec3 vViewPosition;
+                varying vec2 vUv;
+                
+                void main() {
+                    vec3 normal = normalize(vNormal);
+                    vec3 viewDir = normalize(vViewPosition);
+                    
+                    float fresnel = pow(1.0 - abs(dot(normal, viewDir)), fresnelPower);
+                    
+                    float colorMix = sin(time * 0.5) * 0.5 + 0.5;
+                    vec3 animatedFresnelColor = mix(fresnelColor1, fresnelColor2, colorMix);
+                    
+                    vec3 finalColor = baseColor;
+                    finalColor += animatedFresnelColor * fresnel * fresnelIntensity;
+                    
+                    float ambientOcclusion = 0.3;
+                    vec3 ambient = finalColor * ambientOcclusion;
+                    
+                    vec3 lightDir = normalize(vec3(1.0, 1.0, 1.0));
+                    float diff = max(dot(normal, lightDir), 0.0);
+                    vec3 diffuse = finalColor * diff * 0.7;
+                    
+                    vec3 halfDir = normalize(lightDir + viewDir);
+                    float spec = pow(max(dot(normal, halfDir), 0.0), 32.0 * (1.0 - roughness));
+                    vec3 specular = vec3(1.0) * spec * (1.0 - roughness) * metalness;
+                    
+                    vec3 result = ambient + diffuse + specular;
+                    result += animatedFresnelColor * fresnel * fresnelIntensity * 0.5;
+                    
+                    gl_FragColor = vec4(result, 1.0);
+                }
+            `;
+            
+            return new THREE.ShaderMaterial({
+                uniforms: {
+                    baseColor: { value: new THREE.Color(0x0066ff) },
+                    roughness: { value: 0.3 },
+                    metalness: { value: 0.7 },
+                    time: { value: 0 },
+                    fresnelPower: { value: 3.0 },
+                    fresnelIntensity: { value: 1.5 },
+                    fresnelColor1: { value: new THREE.Color(0x00ffff) },
+                    fresnelColor2: { value: new THREE.Color(0xff00ff) }
+                },
+                vertexShader,
+                fragmentShader
+            });
+        }
+        
+        function createGround(textures) {
+            const geometry = new THREE.PlaneGeometry(30, 30, 50, 50);
+            
+            const material = new THREE.MeshPhysicalMaterial({
+                map: textures.map,
+                roughnessMap: textures.roughnessMap,
+                metalnessMap: textures.metalnessMap,
+                roughness: 0.8,
+                metalness: 0.5,
+                clearcoat: 0.3,
+                clearcoatRoughness: 0.4
+            });
+            
+            const ground = new THREE.Mesh(geometry, material);
+            ground.rotation.x = -Math.PI / 2;
+            ground.position.y = -2;
+            ground.receiveShadow = true;
+            
+            return ground;
+        }
+        
+        function createKnot() {
+            const geometry = new THREE.TorusKnotGeometry(1, 0.3, 128, 32);
+            
+            const material = createFresnelMaterial();
+            
+            const knot = new THREE.Mesh(geometry, material);
+            knot.position.y = 0.5;
+            knot.castShadow = true;
+            knot.receiveShadow = true;
+            
+            return knot;
+        }
+        
+        function createParticleExplosion(position) {
+            const particleCount = 50;
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+            const velocities = [];
+            const colors = new Float32Array(particleCount * 3);
+            
+            for (let i = 0; i < particleCount; i++) {
+                positions[i * 3] = position.x;
+                positions[i * 3 + 1] = position.y;
+                positions[i * 3 + 2] = position.z;
+                
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.random() * Math.PI;
+                const speed = Math.random() * 0.15 + 0.05;
+                
+                velocities.push({
+                    x: Math.sin(phi) * Math.cos(theta) * speed,
+                    y: Math.random() * 0.2 + 0.1,
+                    z: Math.sin(phi) * Math.sin(theta) * speed
+                });
+                
+                const color = new THREE.Color();
+                color.setHSL(Math.random() * 0.3 + 0.5, 1.0, 0.6);
+                colors[i * 3] = color.r;
+                colors[i * 3 + 1] = color.g;
+                colors[i * 3 + 2] = color.b;
+            }
+            
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            
+            const material = new THREE.PointsMaterial({
+                size: 0.08,
+                vertexColors: true,
+                transparent: true,
+                opacity: 1.0,
+                blending: THREE.AdditiveBlending
+            });
+            
+            const particleSystem = new THREE.Points(geometry, material);
+            scene.add(particleSystem);
+            
+            particles.push({
+                mesh: particleSystem,
+                velocities: velocities,
+                life: 1.0,
+                gravity: -0.008
+            });
+        }
+        
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const particle = particles[i];
+                const positions = particle.mesh.geometry.attributes.position.array;
+                
+                for (let j = 0; j < particle.velocities.length; j++) {
+                    particle.velocities[j].y += particle.gravity;
+                    
+                    positions[j * 3] += particle.velocities[j].x;
+                    positions[j * 3 + 1] += particle.velocities[j].y;
+                    positions[j * 3 + 2] += particle.velocities[j].z;
+                }
+                
+                particle.mesh.geometry.attributes.position.needsUpdate = true;
+                
+                particle.life -= 0.015;
+                particle.mesh.material.opacity = particle.life;
+                
+                if (particle.life <= 0) {
+                    scene.remove(particle.mesh);
+                    particle.mesh.geometry.dispose();
+                    particle.mesh.material.dispose();
+                    particles.splice(i, 1);
+                }
+            }
+        }
+        
+        function setupLights() {
+            const ambientLight = new THREE.AmbientLight(0x111122, 0.3);
+            scene.add(ambientLight);
+            
+            spotLight = new THREE.SpotLight(0xffffff, 100);
+            spotLight.position.set(5, 10, 5);
+            spotLight.angle = Math.PI / 6;
+            spotLight.penumbra = 0.5;
+            spotLight.decay = 2;
+            spotLight.distance = 50;
+            spotLight.castShadow = true;
+            spotLight.shadow.mapSize.width = 2048;
+            spotLight.shadow.mapSize.height = 2048;
+            spotLight.shadow.camera.near = 1;
+            spotLight.shadow.camera.far = 30;
+            spotLight.shadow.bias = -0.0001;
+            spotLight.shadow.radius = 4;
+            scene.add(spotLight);
+            
+            const spotLightTarget = new THREE.Object3D();
+            spotLightTarget.position.set(0, 0, 0);
+            scene.add(spotLightTarget);
+            spotLight.target = spotLightTarget;
+            
+            flashlight = new THREE.PointLight(0xffffcc, 5, 15);
+            flashlight.castShadow = false;
+            scene.add(flashlight);
+        }
+        
+        function setupPostProcessing() {
+            composer = new EffectComposer(renderer);
+            
+            const renderPass = new RenderPass(scene, camera);
+            composer.addPass(renderPass);
+            
+            bloomPass = new UnrealBloomPass(
+                new THREE.Vector2(window.innerWidth, window.innerHeight),
+                0.8,
+                0.4,
+                0.85
+            );
+            composer.addPass(bloomPass);
+        }
+        
+        function onMouseMove(event) {
+            mousePosition.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mousePosition.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            
+            const vector = new THREE.Vector3(mousePosition.x, mousePosition.y, 0.5);
+            vector.unproject(camera);
+            const dir = vector.sub(camera.position).normalize();
+            const distance = -camera.position.y / dir.y;
+            const pos = camera.position.clone().add(dir.multiplyScalar(distance));
+            
+            flashlight.position.set(pos.x, 2, pos.z);
+        }
+        
+        function onClick(event) {
+            mousePosition.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mousePosition.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            
+            raycaster.setFromCamera(mousePosition, camera);
+            
+            const intersects = raycaster.intersectObject(knot);
+            
+            if (intersects.length > 0) {
+                const intersectPoint = intersects[0].point;
+                
+                createParticleExplosion(intersectPoint);
+                
+                const newColor = new THREE.Color();
+                newColor.setHSL(Math.random(), 0.8, 0.5);
+                
+                gsap.timeline()
+                    .to(knot.scale, {
+                        x: 0.8,
+                        y: 0.8,
+                        z: 0.8,
+                        duration: 0.3,
+                        ease: "power2.in"
+                    })
+                    .to(fresnelMaterial.uniforms.baseColor.value, {
+                        r: newColor.r,
+                        g: newColor.g,
+                        b: newColor.b,
+                        duration: 0.2,
+                        ease: "power2.out"
+                    }, "-=0.1")
+                    .to(knot.scale, {
+                        x: 1.0,
+                        y: 1.0,
+                        z: 1.0,
+                        duration: 0.4,
+                        ease: "elastic.out(1, 0.5)"
+                    })
+                    .to(knot.rotation, {
+                        y: knot.rotation.y + Math.PI * 0.25,
+                        duration: 0.4,
+                        ease: "power2.out"
+                    }, "-=0.4");
+            }
+        }
+        
         function init() {
+            clock = new THREE.Clock();
+            
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x2a2a2a);
+            scene.fog = new THREE.Fog(0x0a0a0a, 10, 50);
             
             camera = new THREE.PerspectiveCamera(
-                75,
+                60,
                 window.innerWidth / window.innerHeight,
                 0.1,
                 1000
             );
-            camera.position.z = 5;
+            camera.position.set(0, 3, 7);
             
-            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer = new THREE.WebGLRenderer({ 
+                antialias: true,
+                powerPreference: "high-performance"
+            });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.2;
             document.body.appendChild(renderer.domElement);
             
-            const geometry = new THREE.BoxGeometry(2, 2, 2);
-            const material = new THREE.MeshStandardMaterial({
-                color: 0x0066ff,
-                roughness: 0.5,
-                metalness: 0.3
-            });
-            cube = new THREE.Mesh(geometry, material);
-            scene.add(cube);
+            const textures = createCheckerboardTexture();
+            ground = createGround(textures);
+            scene.add(ground);
             
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-            scene.add(ambientLight);
+            knot = createKnot();
+            fresnelMaterial = knot.material;
+            scene.add(knot);
             
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-            directionalLight.position.set(5, 5, 5);
-            scene.add(directionalLight);
+            setupLights();
+            setupPostProcessing();
             
             controls = new OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
             controls.dampingFactor = 0.05;
-            controls.minDistance = 2;
-            controls.maxDistance = 10;
+            controls.minDistance = 3;
+            controls.maxDistance = 15;
+            controls.maxPolarAngle = Math.PI / 2 - 0.1;
+            controls.target.set(0, 0.5, 0);
+            
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
             
             window.addEventListener('resize', onWindowResize);
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('click', onClick);
+            
+            setTimeout(() => {
+                document.getElementById('loading').classList.add('hidden');
+            }, 500);
         }
         
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
+            composer.setSize(window.innerWidth, window.innerHeight);
         }
         
         function animate() {
             requestAnimationFrame(animate);
             
-            cube.rotation.y += 0.01;
+            const time = clock.getElapsedTime();
+            
+            if (fresnelMaterial) {
+                fresnelMaterial.uniforms.time.value = time;
+            }
+            
+            knot.rotation.y += 0.003;
+            knot.rotation.x = Math.sin(time * 0.5) * 0.1;
+            
+            updateParticles();
             
             controls.update();
             
-            renderer.render(scene, camera);
+            composer.render();
         }
     </script>
 </body>
