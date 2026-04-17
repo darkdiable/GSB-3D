@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Three.js 3D Visualization</title>
+    <title>电影级3D交互展示</title>
     <style>
         * {
             margin: 0;
@@ -13,20 +13,47 @@
         
         body {
             overflow: hidden;
-            background-color: #1a1a1a;
+            background-color: #000;
         }
         
         canvas {
             display: block;
         }
+        
+        #ui {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            color: white;
+            font-family: 'Arial', sans-serif;
+            pointer-events: none;
+        }
+        
+        #ui h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px rgba(0, 150, 255, 0.8);
+        }
+        
+        #ui p {
+            font-size: 14px;
+            opacity: 0.8;
+        }
     </style>
 </head>
 <body>
+    <div id="ui">
+        <h1>电影级3D交互展示</h1>
+        <p>点击物体触发动画效果</p>
+    </div>
+    
     <script type="importmap">
         {
             "imports": {
                 "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+                "gsap": "https://cdn.jsdelivr.net/npm/gsap@3.12.5/+esm"
             }
         }
     </script>
@@ -34,68 +61,484 @@
     <script type="module">
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+        import gsap from 'gsap';
         
-        let scene, camera, renderer, cube, controls;
+        let scene, camera, renderer, controls, composer;
+        let knotObjects = [];
+        let spotlight, flashlight;
+        let raycaster, mouse;
+        let particles = [];
+        let time = 0;
         
         init();
         animate();
         
+        function createCheckerboardTexture() {
+            const canvas = document.createElement('canvas');
+            const size = 1024;
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            
+            const tileSize = size / 8;
+            
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    const isEven = (i + j) % 2 === 0;
+                    
+                    if (isEven) {
+                        const gradient = ctx.createRadialGradient(
+                            i * tileSize + tileSize / 2,
+                            j * tileSize + tileSize / 2,
+                            0,
+                            i * tileSize + tileSize / 2,
+                            j * tileSize + tileSize / 2,
+                            tileSize / 2
+                        );
+                        gradient.addColorStop(0, 'rgba(60, 60, 60, 0.9)');
+                        gradient.addColorStop(0.7, 'rgba(40, 40, 40, 0.85)');
+                        gradient.addColorStop(1, 'rgba(20, 20, 20, 0.7)');
+                        ctx.fillStyle = gradient;
+                    } else {
+                        const gradient = ctx.createRadialGradient(
+                            i * tileSize + tileSize / 2,
+                            j * tileSize + tileSize / 2,
+                            0,
+                            i * tileSize + tileSize / 2,
+                            j * tileSize + tileSize / 2,
+                            tileSize / 2
+                        );
+                        gradient.addColorStop(0, 'rgba(120, 120, 120, 0.95)');
+                        gradient.addColorStop(0.6, 'rgba(80, 80, 80, 0.9)');
+                        gradient.addColorStop(1, 'rgba(50, 50, 50, 0.8)');
+                        ctx.fillStyle = gradient;
+                    }
+                    
+                    ctx.fillRect(i * tileSize, j * tileSize, tileSize, tileSize);
+                    
+                    ctx.strokeStyle = `rgba(0, 0, 0, ${0.1 + Math.random() * 0.1})`;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(i * tileSize + Math.random() * tileSize, j * tileSize);
+                    ctx.lineTo(i * tileSize + Math.random() * tileSize, j * tileSize + tileSize);
+                    ctx.stroke();
+                }
+            }
+            
+            for (let i = 0; i < 100; i++) {
+                const x = Math.random() * size;
+                const y = Math.random() * size;
+                const radius = Math.random() * 3 + 1;
+                ctx.beginPath();
+                ctx.arc(x, y, radius, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 255, 255, ${Math.random() * 0.1})`;
+                ctx.fill();
+            }
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            texture.repeat.set(4, 4);
+            texture.colorSpace = THREE.SRGBColorSpace;
+            
+            return texture;
+        }
+        
+        function createFresnelShader() {
+            return {
+                uniforms: {
+                    time: { value: 0 },
+                    fresnelColor: { value: new THREE.Color(0x00aaff) },
+                    fresnelPower: { value: 2.0 }
+                },
+                onBeforeCompile: (shader) => {
+                    shader.uniforms.time = { value: 0 };
+                    shader.uniforms.fresnelColor = { value: new THREE.Color(0x00aaff) };
+                    shader.uniforms.fresnelPower = { value: 2.0 };
+                    
+                    shader.vertexShader = shader.vertexShader.replace(
+                        '#include <common>',
+                        `#include <common>
+                        varying vec3 vNormal;
+                        varying vec3 vViewPosition;`
+                    );
+                    
+                    shader.vertexShader = shader.vertexShader.replace(
+                        '#include <worldpos_vertex>',
+                        `#include <worldpos_vertex>
+                        vNormal = normalize(normalMatrix * normal);
+                        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                        vViewPosition = -mvPosition.xyz;`
+                    );
+                    
+                    shader.fragmentShader = shader.fragmentShader.replace(
+                        '#include <common>',
+                        `#include <common>
+                        uniform float time;
+                        uniform vec3 fresnelColor;
+                        uniform float fresnelPower;
+                        varying vec3 vNormal;
+                        varying vec3 vViewPosition;`
+                    );
+                    
+                    shader.fragmentShader = shader.fragmentShader.replace(
+                        '#include <dithering_fragment>',
+                        `#include <dithering_fragment>
+                        vec3 normal = normalize(vNormal);
+                        vec3 viewDir = normalize(vViewPosition);
+                        float fresnel = pow(1.0 - max(dot(normal, viewDir), 0.0), fresnelPower);
+                        float colorShift = sin(time * 0.5) * 0.5 + 0.5;
+                        vec3 dynamicColor = mix(
+                            vec3(0.0, 0.7, 1.0),
+                            vec3(1.0, 0.3, 0.5),
+                            colorShift
+                        );
+                        vec3 fresnelGlow = dynamicColor * fresnel * 0.8;
+                        gl_FragColor.rgb += fresnelGlow;`
+                    );
+                }
+            };
+        }
+        
         function init() {
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x2a2a2a);
+            scene.background = new THREE.Color(0x0a0a15);
+            scene.fog = new THREE.FogExp2(0x0a0a15, 0.05);
             
             camera = new THREE.PerspectiveCamera(
-                75,
+                60,
                 window.innerWidth / window.innerHeight,
                 0.1,
-                1000
+                100
             );
-            camera.position.z = 5;
+            camera.position.set(0, 3, 8);
             
-            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.2;
             document.body.appendChild(renderer.domElement);
             
-            const geometry = new THREE.BoxGeometry(2, 2, 2);
-            const material = new THREE.MeshStandardMaterial({
-                color: 0x0066ff,
-                roughness: 0.5,
-                metalness: 0.3
+            const checkerboardTexture = createCheckerboardTexture();
+            const floorGeometry = new THREE.PlaneGeometry(30, 30);
+            const floorMaterial = new THREE.MeshPhysicalMaterial({
+                map: checkerboardTexture,
+                roughnessMap: checkerboardTexture,
+                metalnessMap: checkerboardTexture,
+                roughness: 0.6,
+                metalness: 0.3,
+                transparent: true,
+                opacity: 0.95,
+                clearcoat: 0.3,
+                clearcoatRoughness: 0.2
             });
-            cube = new THREE.Mesh(geometry, material);
-            scene.add(cube);
+            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+            floor.rotation.x = -Math.PI / 2;
+            floor.position.y = -1.5;
+            floor.receiveShadow = true;
+            scene.add(floor);
             
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            const shaderExt = createFresnelShader();
+            
+            const knotGeometry1 = new THREE.TorusKnotGeometry(0.8, 0.25, 128, 32);
+            const knotMaterial1 = new THREE.MeshPhysicalMaterial({
+                color: 0x4488ff,
+                roughness: 0.15,
+                metalness: 0.9,
+                clearcoat: 1.0,
+                clearcoatRoughness: 0.1,
+                envMapIntensity: 1.5,
+                ...shaderExt
+            });
+            const knot1 = new THREE.Mesh(knotGeometry1, knotMaterial1);
+            knot1.position.set(-2.5, 0.5, 0);
+            knot1.castShadow = true;
+            knot1.receiveShadow = true;
+            scene.add(knot1);
+            knotObjects.push(knot1);
+            
+            const knotGeometry2 = new THREE.TorusKnotGeometry(0.8, 0.25, 128, 32, 4, 3);
+            const knotMaterial2 = new THREE.MeshPhysicalMaterial({
+                color: 0xff4488,
+                roughness: 0.1,
+                metalness: 0.95,
+                clearcoat: 1.0,
+                clearcoatRoughness: 0.05,
+                envMapIntensity: 1.5,
+                ...shaderExt
+            });
+            const knot2 = new THREE.Mesh(knotGeometry2, knotMaterial2);
+            knot2.position.set(2.5, 0.5, 0);
+            knot2.castShadow = true;
+            knot2.receiveShadow = true;
+            scene.add(knot2);
+            knotObjects.push(knot2);
+            
+            const knotGeometry3 = new THREE.TorusKnotGeometry(0.6, 0.2, 128, 32, 3, 5);
+            const knotMaterial3 = new THREE.MeshPhysicalMaterial({
+                color: 0x44ff88,
+                roughness: 0.12,
+                metalness: 0.92,
+                clearcoat: 1.0,
+                clearcoatRoughness: 0.08,
+                envMapIntensity: 1.5,
+                ...shaderExt
+            });
+            const knot3 = new THREE.Mesh(knotGeometry3, knotMaterial3);
+            knot3.position.set(0, 0.5, -2);
+            knot3.castShadow = true;
+            knot3.receiveShadow = true;
+            scene.add(knot3);
+            knotObjects.push(knot3);
+            
+            spotlight = new THREE.SpotLight(0xffffff, 1500, 30, Math.PI / 5, 0.3, 1);
+            spotlight.position.set(0, 10, 0);
+            spotlight.castShadow = true;
+            spotlight.shadow.mapSize.width = 2048;
+            spotlight.shadow.mapSize.height = 2048;
+            spotlight.shadow.camera.near = 0.5;
+            spotlight.shadow.camera.far = 50;
+            spotlight.shadow.bias = -0.0001;
+            scene.add(spotlight);
+            scene.add(spotlight.target);
+            
+            flashlight = new THREE.PointLight(0x00aaff, 200, 15);
+            flashlight.position.set(0, 0, 0);
+            flashlight.castShadow = true;
+            flashlight.shadow.mapSize.width = 512;
+            flashlight.shadow.mapSize.height = 512;
+            scene.add(flashlight);
+            
+            const ambientLight = new THREE.AmbientLight(0x404050, 0.4);
             scene.add(ambientLight);
-            
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-            directionalLight.position.set(5, 5, 5);
-            scene.add(directionalLight);
             
             controls = new OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
             controls.dampingFactor = 0.05;
-            controls.minDistance = 2;
-            controls.maxDistance = 10;
+            controls.minDistance = 3;
+            controls.maxDistance = 20;
             
+            const renderScene = new RenderPass(scene, camera);
+            const bloomPass = new UnrealBloomPass(
+                new THREE.Vector2(window.innerWidth, window.innerHeight),
+                0.8,
+                0.4,
+                0.85
+            );
+            bloomPass.threshold = 0.3;
+            bloomPass.strength = 0.6;
+            bloomPass.radius = 0.5;
+            
+            composer = new EffectComposer(renderer);
+            composer.addPass(renderScene);
+            composer.addPass(bloomPass);
+            
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+            
+            renderer.domElement.addEventListener('click', onMouseClick);
+            renderer.domElement.addEventListener('mousemove', onMouseMove);
             window.addEventListener('resize', onWindowResize);
+        }
+        
+        function onMouseMove(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            
+            const vector = new THREE.Vector3(mouse.x, mouse.y, 0.5);
+            vector.unproject(camera);
+            const dir = vector.sub(camera.position).normalize();
+            const distance = (3 - camera.position.y) / dir.y;
+            const pos = camera.position.clone().add(dir.multiplyScalar(distance));
+            flashlight.position.copy(pos);
+        }
+        
+        function onMouseClick(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(knotObjects);
+            
+            if (intersects.length > 0) {
+                const clickedObject = intersects[0].object;
+                const clickPoint = intersects[0].point;
+                
+                gsap.timeline()
+                    .to(clickedObject.scale, {
+                        x: 0.8,
+                        y: 0.8,
+                        z: 0.8,
+                        duration: 0.2,
+                        ease: 'power2.in'
+                    })
+                    .to(clickedObject.material.color, {
+                        r: Math.random(),
+                        g: Math.random(),
+                        b: Math.random(),
+                        duration: 0.15
+                    }, 0.1)
+                    .to(clickedObject.scale, {
+                        x: 1.0,
+                        y: 1.0,
+                        z: 1.0,
+                        duration: 0.4,
+                        ease: 'elastic.out(1.5, 0.3)'
+                    }, 0.25)
+                    .to(clickedObject.rotation, {
+                        y: clickedObject.rotation.y + Math.PI * 0.3,
+                        duration: 0.4,
+                        ease: 'power2.out'
+                    }, 0.25);
+                
+                createParticleExplosion(clickPoint);
+            }
+        }
+        
+        function createParticleExplosion(position) {
+            const particleCount = 50;
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+            const velocities = [];
+            const colors = new Float32Array(particleCount * 3);
+            const sizes = new Float32Array(particleCount);
+            const alphas = new Float32Array(particleCount);
+            
+            for (let i = 0; i < particleCount; i++) {
+                positions[i * 3] = position.x;
+                positions[i * 3 + 1] = position.y;
+                positions[i * 3 + 2] = position.z;
+                
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(2 * Math.random() - 1);
+                const speed = Math.random() * 0.15 + 0.05;
+                velocities.push({
+                    x: Math.sin(phi) * Math.cos(theta) * speed,
+                    y: Math.sin(phi) * Math.sin(theta) * speed,
+                    z: Math.cos(phi) * speed
+                });
+                
+                const color = new THREE.Color().setHSL(Math.random() * 0.2 + 0.5, 1, 0.6);
+                colors[i * 3] = color.r;
+                colors[i * 3 + 1] = color.g;
+                colors[i * 3 + 2] = color.b;
+                
+                sizes[i] = Math.random() * 0.1 + 0.05;
+                alphas[i] = 1.0;
+            }
+            
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+            geometry.setAttribute('alpha', new THREE.BufferAttribute(alphas, 1));
+            
+            const material = new THREE.ShaderMaterial({
+                uniforms: {},
+                vertexShader: `
+                    attribute float size;
+                    attribute float alpha;
+                    varying vec3 vColor;
+                    varying float vAlpha;
+                    void main() {
+                        vColor = color;
+                        vAlpha = alpha;
+                        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                        gl_PointSize = size * (300.0 / -mvPosition.z);
+                        gl_Position = projectionMatrix * mvPosition;
+                    }
+                `,
+                fragmentShader: `
+                    varying vec3 vColor;
+                    varying float vAlpha;
+                    void main() {
+                        float dist = length(gl_PointCoord - vec2(0.5));
+                        if (dist > 0.5) discard;
+                        gl_FragColor = vec4(vColor, vAlpha * (1.0 - dist * 2.0));
+                    }
+                `,
+                transparent: true,
+                vertexColors: true,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            
+            const particleSystem = new THREE.Points(geometry, material);
+            scene.add(particleSystem);
+            
+            particles.push({
+                mesh: particleSystem,
+                velocities: velocities,
+                life: 1.0
+            });
+        }
+        
+        function updateParticles(delta) {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                const positions = p.mesh.geometry.attributes.position.array;
+                const alphas = p.mesh.geometry.attributes.alpha.array;
+                
+                for (let j = 0; j < p.velocities.length; j++) {
+                    positions[j * 3] += p.velocities[j].x;
+                    positions[j * 3 + 1] += p.velocities[j].y;
+                    positions[j * 3 + 2] += p.velocities[j].z;
+                    
+                    p.velocities[j].y -= 0.003;
+                    
+                    alphas[j] = p.life;
+                }
+                
+                p.mesh.geometry.attributes.position.needsUpdate = true;
+                p.mesh.geometry.attributes.alpha.needsUpdate = true;
+                
+                p.life -= delta * 1.5;
+                
+                if (p.life <= 0) {
+                    scene.remove(p.mesh);
+                    p.mesh.geometry.dispose();
+                    p.mesh.material.dispose();
+                    particles.splice(i, 1);
+                }
+            }
         }
         
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
+            composer.setSize(window.innerWidth, window.innerHeight);
         }
         
         function animate() {
             requestAnimationFrame(animate);
+            time += 0.016;
             
-            cube.rotation.y += 0.01;
+            knotObjects.forEach((knot, index) => {
+                knot.rotation.x += 0.003 + index * 0.001;
+                knot.rotation.y += 0.005 + index * 0.001;
+                
+                if (knot.material.userData.shader) {
+                    knot.material.userData.shader.uniforms.time.value = time;
+                }
+                knot.material.onBeforeCompile = (shader) => {
+                    shader.uniforms.time = { value: time };
+                };
+            });
+            
+            const colorShift = Math.sin(time * 0.3) * 0.5 + 0.5;
+            flashlight.color.setHSL(0.55 + colorShift * 0.2, 1, 0.6);
+            
+            updateParticles(0.016);
             
             controls.update();
             
-            renderer.render(scene, camera);
+            composer.render();
         }
     </script>
 </body>
