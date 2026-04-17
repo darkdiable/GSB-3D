@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Three.js 3D Visualization</title>
+    <title>Three.js 电影级3D展示</title>
     <style>
         * {
             margin: 0;
@@ -13,15 +13,43 @@
         
         body {
             overflow: hidden;
-            background-color: #1a1a1a;
+            background-color: #0a0a0a;
         }
         
         canvas {
             display: block;
         }
+        
+        #ui-layer {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #ffffff;
+            font-family: 'Arial', sans-serif;
+            font-size: 14px;
+            pointer-events: none;
+            z-index: 100;
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+        }
+        
+        #ui-layer h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: #00ffff;
+        }
+        
+        #ui-layer p {
+            opacity: 0.8;
+        }
     </style>
 </head>
 <body>
+    <div id="ui-layer">
+        <h1>电影级3D展示</h1>
+        <p>点击绳结物体触发交互效果</p>
+        <p>鼠标移动控制辅助光源</p>
+    </div>
+    
     <script type="importmap">
         {
             "imports": {
@@ -34,68 +62,473 @@
     <script type="module">
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+        import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
         
-        let scene, camera, renderer, cube, controls;
+        // 场景变量
+        let scene, camera, renderer, composer, controls;
+        let knot, ground;
+        let spotlight, mouseLight;
+        let raycaster, mouse;
+        let particles = [];
+        let clock = new THREE.Clock();
+        let isAnimating = false;
+        
+        // 菲涅尔着色器 uniforms
+        let fresnelUniforms = {
+            time: { value: 0 },
+            color: { value: new THREE.Color(0x00ffff) }
+        };
         
         init();
         animate();
         
         function init() {
+            // 创建场景
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x2a2a2a);
+            scene.background = new THREE.Color(0x050505);
+            scene.fog = new THREE.FogExp2(0x050505, 0.02);
             
+            // 创建相机
             camera = new THREE.PerspectiveCamera(
-                75,
+                60,
                 window.innerWidth / window.innerHeight,
                 0.1,
                 1000
             );
-            camera.position.z = 5;
+            camera.position.set(0, 5, 10);
+            camera.lookAt(0, 0, 0);
             
+            // 创建渲染器
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.0;
             document.body.appendChild(renderer.domElement);
             
-            const geometry = new THREE.BoxGeometry(2, 2, 2);
-            const material = new THREE.MeshStandardMaterial({
-                color: 0x0066ff,
-                roughness: 0.5,
-                metalness: 0.3
-            });
-            cube = new THREE.Mesh(geometry, material);
-            scene.add(cube);
+            // 创建程序化棋盘格纹理
+            const checkerTexture = createCheckerboardTexture();
             
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            // 创建地面
+            const groundGeometry = new THREE.PlaneGeometry(50, 50);
+            const groundMaterial = new THREE.MeshPhysicalMaterial({
+                color: 0x222222,
+                metalness: 0.8,
+                roughness: 0.4,
+                roughnessMap: checkerTexture,
+                metalnessMap: checkerTexture,
+                clearcoat: 0.3,
+                clearcoatRoughness: 0.2
+            });
+            ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.position.y = -2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+            
+            // 创建绳结物体
+            const knotGeometry = new THREE.TorusKnotGeometry(1.5, 0.4, 128, 32);
+            
+            // 自定义菲涅尔边缘发光材质
+            const knotMaterial = new THREE.MeshPhysicalMaterial({
+                color: 0x0066ff,
+                metalness: 0.7,
+                roughness: 0.2,
+                clearcoat: 1.0,
+                clearcoatRoughness: 0.1,
+                emissive: 0x000000,
+                emissiveIntensity: 0.5
+            });
+            
+            // 添加自定义着色器代码实现菲涅尔效果
+            knotMaterial.onBeforeCompile = function(shader) {
+                shader.uniforms.time = fresnelUniforms.time;
+                shader.uniforms.fresnelColor = fresnelUniforms.color;
+                
+                shader.fragmentShader = `
+                    uniform float time;
+                    uniform vec3 fresnelColor;
+                    
+                    // 色相转换函数
+                    vec3 hueShift(vec3 color, float hue) {
+                        const vec3 k = vec3(0.57735, 0.57735, 0.57735);
+                        float cosAngle = cos(hue);
+                        return vec3(color * cosAngle + cross(k, color) * sin(hue) + k * dot(k, color) * (1.0 - cosAngle));
+                    }
+                ` + shader.fragmentShader;
+                
+                shader.fragmentShader = shader.fragmentShader.replace(
+                    '#include <emissivemap_fragment>',
+                    `
+                    #include <emissivemap_fragment>
+                    
+                    // 菲涅尔边缘发光计算
+                    vec3 viewDirFresnel = normalize(cameraPosition - vViewPosition);
+                    vec3 normalFresnel = normalize(vNormal);
+                    float fresnel = pow(1.0 - abs(dot(viewDirFresnel, normalFresnel)), 3.0);
+                    
+                    // 随时间流动的颜色
+                    float hue = time * 0.2;
+                    vec3 flowingColor = hueShift(fresnelColor, hue);
+                    
+                    totalEmissiveRadiance += flowingColor * fresnel * 0.8;
+                    `
+                );
+                
+                knotMaterial.userData.shader = shader;
+            };
+            
+            knot = new THREE.Mesh(knotGeometry, knotMaterial);
+            knot.castShadow = true;
+            knot.receiveShadow = true;
+            scene.add(knot);
+            
+            // 主光源 - 聚光灯
+            spotlight = new THREE.SpotLight(0xffffff, 200);
+            spotlight.position.set(5, 10, 5);
+            spotlight.angle = Math.PI / 6;
+            spotlight.penumbra = 0.3;
+            spotlight.decay = 1.5;
+            spotlight.distance = 100;
+            spotlight.castShadow = true;
+            spotlight.shadow.mapSize.width = 2048;
+            spotlight.shadow.mapSize.height = 2048;
+            spotlight.shadow.bias = -0.0001;
+            spotlight.shadow.radius = 4;
+            scene.add(spotlight);
+            
+            // 环境光
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
             scene.add(ambientLight);
             
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-            directionalLight.position.set(5, 5, 5);
-            scene.add(directionalLight);
+            // 鼠标跟随点光源（手电筒效果）
+            mouseLight = new THREE.PointLight(0xffaa00, 50, 20);
+            mouseLight.position.set(0, 3, 5);
+            mouseLight.castShadow = true;
+            mouseLight.shadow.bias = -0.0001;
+            scene.add(mouseLight);
             
+            // 后期处理
+            const renderScene = new RenderPass(scene, camera);
+            
+            const bloomPass = new UnrealBloomPass(
+                new THREE.Vector2(window.innerWidth, window.innerHeight),
+                0.5,  // strength
+                0.4,  // radius
+                0.85  // threshold
+            );
+            
+            const outputPass = new OutputPass();
+            
+            composer = new EffectComposer(renderer);
+            composer.addPass(renderScene);
+            composer.addPass(bloomPass);
+            composer.addPass(outputPass);
+            
+            // 控制器
             controls = new OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
             controls.dampingFactor = 0.05;
-            controls.minDistance = 2;
-            controls.maxDistance = 10;
+            controls.minDistance = 3;
+            controls.maxDistance = 20;
+            controls.maxPolarAngle = Math.PI / 2 - 0.05;
             
+            // 射线检测
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+            
+            // 事件监听
             window.addEventListener('resize', onWindowResize);
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('click', onMouseClick);
         }
         
+        // 创建程序化棋盘格纹理
+        function createCheckerboardTexture() {
+            const size = 512;
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            
+            const squares = 8;
+            const squareSize = size / squares;
+            
+            for (let i = 0; i < squares; i++) {
+                for (let j = 0; j < squares; j++) {
+                    // 使用灰度值创建粗糙度和金属度变化
+                    const isEven = (i + j) % 2 === 0;
+                    const baseValue = isEven ? 180 : 80;
+                    
+                    // 添加一些噪点增加真实感
+                    const noise = Math.random() * 40 - 20;
+                    const value = Math.max(0, Math.min(255, baseValue + noise));
+                    
+                    ctx.fillStyle = `rgba(${value}, ${value}, ${value}, 1)`;
+                    ctx.fillRect(i * squareSize, j * squareSize, squareSize, squareSize);
+                    
+                    // 添加磨损效果
+                    if (Math.random() > 0.7) {
+                        ctx.fillStyle = `rgba(${value - 30}, ${value - 30}, ${value - 30}, 0.5)`;
+                        ctx.fillRect(
+                            i * squareSize + Math.random() * squareSize * 0.5,
+                            j * squareSize + Math.random() * squareSize * 0.5,
+                            squareSize * 0.3,
+                            squareSize * 0.3
+                        );
+                    }
+                }
+            }
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            texture.repeat.set(4, 4);
+            
+            return texture;
+        }
+        
+        // 创建粒子爆炸效果
+        function createParticleExplosion(position) {
+            const particleCount = 30;
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+            const velocities = [];
+            const colors = new Float32Array(particleCount * 3);
+            const lifetimes = new Float32Array(particleCount);
+            
+            const colorPalette = [
+                new THREE.Color(0x00ffff),
+                new THREE.Color(0xff00ff),
+                new THREE.Color(0xffff00),
+                new THREE.Color(0xff6600)
+            ];
+            
+            for (let i = 0; i < particleCount; i++) {
+                positions[i * 3] = position.x;
+                positions[i * 3 + 1] = position.y;
+                positions[i * 3 + 2] = position.z;
+                
+                // 随机爆炸方向
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.random() * Math.PI;
+                const speed = 0.1 + Math.random() * 0.2;
+                
+                velocities.push({
+                    x: speed * Math.sin(phi) * Math.cos(theta),
+                    y: speed * Math.sin(phi) * Math.sin(theta),
+                    z: speed * Math.cos(phi)
+                });
+                
+                // 随机颜色
+                const color = colorPalette[Math.floor(Math.random() * colorPalette.length)];
+                colors[i * 3] = color.r;
+                colors[i * 3 + 1] = color.g;
+                colors[i * 3 + 2] = color.b;
+                
+                lifetimes[i] = 1.0;
+            }
+            
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            
+            const material = new THREE.PointsMaterial({
+                size: 0.15,
+                vertexColors: true,
+                transparent: true,
+                opacity: 1,
+                blending: THREE.AdditiveBlending
+            });
+            
+            const particleSystem = new THREE.Points(geometry, material);
+            scene.add(particleSystem);
+            
+            particles.push({
+                mesh: particleSystem,
+                velocities: velocities,
+                lifetimes: lifetimes,
+                initialLifetimes: [...lifetimes]
+            });
+        }
+        
+        // 更新粒子
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                const positions = p.mesh.geometry.attributes.position.array;
+                let allDead = true;
+                
+                for (let j = 0; j < p.lifetimes.length; j++) {
+                    if (p.lifetimes[j] > 0) {
+                        allDead = false;
+                        
+                        // 应用速度
+                        positions[j * 3] += p.velocities[j].x;
+                        positions[j * 3 + 1] += p.velocities[j].y;
+                        positions[j * 3 + 2] += p.velocities[j].z;
+                        
+                        // 重力影响
+                        p.velocities[j].y -= 0.005;
+                        
+                        // 减少生命周期
+                        p.lifetimes[j] -= 0.015;
+                    }
+                }
+                
+                p.mesh.geometry.attributes.position.needsUpdate = true;
+                
+                // 更新透明度
+                const avgLifetime = p.lifetimes.reduce((a, b) => a + b, 0) / p.lifetimes.length;
+                p.mesh.material.opacity = avgLifetime;
+                
+                if (allDead) {
+                    scene.remove(p.mesh);
+                    p.mesh.geometry.dispose();
+                    p.mesh.material.dispose();
+                    particles.splice(i, 1);
+                }
+            }
+        }
+        
+        // 鼠标移动事件
+        function onMouseMove(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            
+            // 更新鼠标跟随光源位置
+            const vector = new THREE.Vector3(mouse.x, mouse.y, 0.5);
+            vector.unproject(camera);
+            const dir = vector.sub(camera.position).normalize();
+            const distance = 8;
+            const pos = camera.position.clone().add(dir.multiplyScalar(distance));
+            
+            mouseLight.position.copy(pos);
+            mouseLight.position.y = Math.max(0.5, pos.y);
+        }
+        
+        // 鼠标点击事件
+        function onMouseClick(event) {
+            if (isAnimating) return;
+            
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObject(knot);
+            
+            if (intersects.length > 0) {
+                const hitPoint = intersects[0].point;
+                animateKnot(hitPoint);
+            }
+        }
+        
+        // GSAP风格的动画序列
+        function animateKnot(hitPoint) {
+            isAnimating = true;
+            
+            const startTime = Date.now();
+            const duration1 = 200;  // 缩小阶段
+            const duration2 = 300;  // 变色阶段
+            const duration3 = 400;  // 恢复阶段
+            const totalDuration = duration1 + duration2 + duration3;
+            
+            const startScale = knot.scale.x;
+            const targetScale1 = 0.8;
+            const targetScale2 = 1.0;
+            const startRotation = knot.rotation.y;
+            const targetRotation = startRotation + Math.PI / 4;
+            
+            // 随机颜色
+            const randomColor = new THREE.Color().setHSL(Math.random(), 0.8, 0.5);
+            const startColor = knot.material.color.clone();
+            
+            // 创建粒子爆炸
+            createParticleExplosion(hitPoint);
+            
+            function updateAnimation() {
+                const elapsed = Date.now() - startTime;
+                
+                if (elapsed < duration1) {
+                    // 阶段1: 缩小到0.8倍
+                    const t = elapsed / duration1;
+                    const easeT = easeOutQuad(t);
+                    const scale = startScale + (targetScale1 - startScale) * easeT;
+                    knot.scale.setScalar(scale);
+                } else if (elapsed < duration1 + duration2) {
+                    // 阶段2: 随机改变颜色
+                    const t = (elapsed - duration1) / duration2;
+                    const easeT = easeInOutQuad(t);
+                    knot.material.color.lerpColors(startColor, randomColor, easeT);
+                    knot.scale.setScalar(targetScale1);
+                } else if (elapsed < totalDuration) {
+                    // 阶段3: 缩放回1.0并伴随Y轴旋转
+                    const t = (elapsed - duration1 - duration2) / duration3;
+                    const easeT = easeOutBack(t);
+                    const scale = targetScale1 + (targetScale2 - targetScale1) * easeT;
+                    const rotation = startRotation + (targetRotation - startRotation) * easeT;
+                    knot.scale.setScalar(scale);
+                    knot.rotation.y = rotation;
+                } else {
+                    // 动画结束
+                    knot.scale.setScalar(targetScale2);
+                    isAnimating = false;
+                    return;
+                }
+                
+                requestAnimationFrame(updateAnimation);
+            }
+            
+            updateAnimation();
+        }
+        
+        // 缓动函数
+        function easeOutQuad(t) {
+            return t * (2 - t);
+        }
+        
+        function easeInOutQuad(t) {
+            return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+        }
+        
+        function easeOutBack(t) {
+            const c1 = 1.70158;
+            const c3 = c1 + 1;
+            return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+        }
+        
+        // 窗口大小调整
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
+            composer.setSize(window.innerWidth, window.innerHeight);
         }
         
+        // 动画循环
         function animate() {
             requestAnimationFrame(animate);
             
-            cube.rotation.y += 0.01;
+            const elapsedTime = clock.getElapsedTime();
             
+            // 更新菲涅尔着色器时间
+            fresnelUniforms.time.value = elapsedTime;
+            
+            // 绳结自转
+            if (!isAnimating) {
+                knot.rotation.y += 0.005;
+                knot.rotation.x = Math.sin(elapsedTime * 0.5) * 0.1;
+            }
+            
+            // 更新粒子
+            updateParticles();
+            
+            // 更新控制器
             controls.update();
             
-            renderer.render(scene, camera);
+            // 渲染
+            composer.render();
         }
     </script>
 </body>
