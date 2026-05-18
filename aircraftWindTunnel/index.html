@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D飞机风洞模拟</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        
+        #info-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: #fff;
+            padding: 15px 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        #info-panel h2 {
+            margin-bottom: 10px;
+            color: #4fc3f7;
+            font-size: 16px;
+        }
+        
+        #info-panel p {
+            line-height: 1.8;
+            color: #bbb;
+        }
+        
+        #controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: #fff;
+            padding: 15px 20px;
+            border-radius: 10px;
+            font-size: 13px;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        #controls h3 {
+            margin-bottom: 10px;
+            color: #81c784;
+            font-size: 14px;
+        }
+        
+        #controls .control-item {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+            gap: 10px;
+        }
+        
+        #controls label {
+            flex: 1;
+            color: #ccc;
+        }
+        
+        #controls input[type="range"] {
+            flex: 2;
+            cursor: pointer;
+        }
+        
+        #controls button {
+            width: 100%;
+            padding: 8px 12px;
+            margin-top: 10px;
+            background: #1976d2;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+            font-size: 13px;
+        }
+        
+        #controls button:hover {
+            background: #2196f3;
+        }
+        
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            font-size: 18px;
+            z-index: 200;
+        }
+        
+        .speed-display {
+            margin-top: 10px;
+            padding: 8px;
+            background: rgba(79, 195, 247, 0.2);
+            border-radius: 5px;
+            text-align: center;
+            color: #4fc3f7;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="loading">加载中...</div>
+    </div>
+    
+    <div id="info-panel">
+        <h2>✈️ 3D飞机风洞模拟</h2>
+        <p>📍 鼠标左键：旋转视角</p>
+        <p>🔍 鼠标滚轮：缩放</p>
+        <p>✋ 鼠标右键：平移</p>
+    </div>
+    
+    <div id="controls">
+        <h3>⚙️ 控制面板</h3>
+        <div class="control-item">
+            <label>风速</label>
+            <input type="range" id="windSpeed" min="0.1" max="3" step="0.1" value="1">
+        </div>
+        <div class="control-item">
+            <label>粒子数量</label>
+            <input type="range" id="particleCount" min="500" max="5000" step="100" value="2000">
+        </div>
+        <div class="control-item">
+            <label>攻角</label>
+            <input type="range" id="angleOfAttack" min="-15" max="15" step="1" value="0">
+        </div>
+        <button id="toggleWind">暂停风洞</button>
+        <div class="speed-display" id="speedDisplay">风速: 1.0</div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="windTunnel.js"></script>
+</body>
+</html>
