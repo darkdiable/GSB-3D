@@ -96,59 +96,62 @@ function init() {
 function createOrbitControls() {
     const domElement = renderer.domElement;
     
-    // 鼠标按下事件
-    domElement.addEventListener('mousedown', function(e) {
+    // 设置canvas可以接收事件
+    domElement.style.outline = 'none';
+    domElement.setAttribute('tabindex', '0');
+    domElement.focus();
+    
+    // 阻止右键菜单
+    domElement.oncontextmenu = function(e) {
         e.preventDefault();
-        e.stopPropagation();
-        
-        // 重置状态
-        mouseState.isDragging = false;
-        mouseState.isPanning = false;
-        
-        // 使用 e.button 检测按钮（0=左键, 1=中键, 2=右键）
-        // 同时检查 e.buttons 确保状态一致
-        if (e.button === 0) {
-            // 左键：旋转
-            mouseState.isDragging = true;
-            mouseState.activeButton = 0;
-            domElement.style.cursor = 'grabbing';
-        } else if (e.button === 2) {
-            // 右键：平移
-            mouseState.isPanning = true;
-            mouseState.activeButton = 2;
-            domElement.style.cursor = 'move';
-        } else if (e.button === 1) {
-            // 中键：也可以用于平移
-            mouseState.isPanning = true;
-            mouseState.activeButton = 1;
-            domElement.style.cursor = 'move';
-        }
+        return false;
+    };
+    
+    // 鼠标按下
+    domElement.onmousedown = function(e) {
+        e.preventDefault();
         
         mouseState.previousX = e.clientX;
         mouseState.previousY = e.clientY;
-    });
+        
+        if (e.button === 0) {
+            // 左键：旋转
+            mouseState.isDragging = true;
+            mouseState.isPanning = false;
+            mouseState.activeButton = 0;
+            domElement.style.cursor = 'grabbing';
+        } else if (e.button === 2 || e.button === 1) {
+            // 右键或中键：平移
+            mouseState.isDragging = false;
+            mouseState.isPanning = true;
+            mouseState.activeButton = e.button;
+            domElement.style.cursor = 'move';
+        }
+        
+        return false;
+    };
     
-    // 鼠标移动事件
-    domElement.addEventListener('mousemove', function(e) {
+    // 鼠标移动
+    domElement.onmousemove = function(e) {
+        if (!mouseState.isDragging && !mouseState.isPanning) {
+            return;
+        }
+        
         e.preventDefault();
         
         const deltaX = e.clientX - mouseState.previousX;
         const deltaY = e.clientY - mouseState.previousY;
         
         if (mouseState.isDragging) {
-            // 旋转相机
+            // 旋转
             orbitControls.theta -= deltaX * mouseState.rotationSpeed;
             orbitControls.phi -= deltaY * mouseState.rotationSpeed;
-            
-            // 限制垂直角度
             orbitControls.phi = Math.max(
                 orbitControls.minPolarAngle,
                 Math.min(orbitControls.maxPolarAngle, orbitControls.phi)
             );
-            
-            updateCameraPosition();
         } else if (mouseState.isPanning) {
-            // 平移目标点
+            // 平移
             const panOffset = new THREE.Vector3();
             const cameraDirection = new THREE.Vector3();
             camera.getWorldDirection(cameraDirection);
@@ -162,44 +165,46 @@ function createOrbitControls() {
             panOffset.addScaledVector(up, deltaY * mouseState.panSpeed * orbitControls.distance * 0.1);
             
             orbitControls.target.add(panOffset);
-            
-            updateCameraPosition();
         }
+        
+        updateCameraPosition();
         
         mouseState.previousX = e.clientX;
         mouseState.previousY = e.clientY;
-    });
+        
+        return false;
+    };
     
-    // 鼠标释放事件
-    document.addEventListener('mouseup', function(e) {
+    // 鼠标释放
+    domElement.onmouseup = function(e) {
         mouseState.isDragging = false;
         mouseState.isPanning = false;
         mouseState.activeButton = -1;
         domElement.style.cursor = 'grab';
-    });
+        return false;
+    };
     
-    // 鼠标离开画布时也重置状态
-    domElement.addEventListener('mouseleave', function(e) {
+    // 鼠标离开
+    domElement.onmouseleave = function(e) {
         mouseState.isDragging = false;
         mouseState.isPanning = false;
         mouseState.activeButton = -1;
         domElement.style.cursor = 'grab';
-    });
+        return false;
+    };
     
-    // 鼠标滚轮事件（缩放）
-    domElement.addEventListener('wheel', function(e) {
+    // 滚轮缩放
+    domElement.onwheel = function(e) {
         e.preventDefault();
         const delta = e.deltaY * mouseState.zoomSpeed;
         orbitControls.distance += delta * orbitControls.distance;
-        
-        // 限制距离范围
         orbitControls.distance = Math.max(
             orbitControls.minDistance,
             Math.min(orbitControls.maxDistance, orbitControls.distance)
         );
-        
         updateCameraPosition();
-    }, { passive: false });
+        return false;
+    };
     
     // 触摸事件支持
     let touchStartDistance = 0;
@@ -253,11 +258,6 @@ function createOrbitControls() {
     
     domElement.addEventListener('touchend', function() {
         mouseState.isDragging = false;
-    });
-    
-    // 禁止右键菜单
-    domElement.addEventListener('contextmenu', function(e) {
-        e.preventDefault();
     });
     
     // 设置初始光标样式
