@@ -24,8 +24,36 @@ const TUNNEL_WIDTH = 12;
 const TUNNEL_HEIGHT = 10;
 
 // ========== 初始化入口 ==========
-window.addEventListener('load', init);
+window.addEventListener('load', function() {
+    // 等待OrbitControls加载完成
+    waitForOrbitControls().then(init).catch(function(err) {
+        console.error('初始化失败:', err);
+        document.getElementById('loading').textContent = '加载失败，请刷新页面重试';
+    });
+});
 window.addEventListener('resize', onWindowResize);
+
+/**
+ * 等待OrbitControls加载完成
+ */
+function waitForOrbitControls() {
+    return new Promise(function(resolve, reject) {
+        var maxAttempts = 50; // 最多等待5秒
+        var attempts = 0;
+        
+        var checkInterval = setInterval(function() {
+            attempts++;
+            if (typeof THREE !== 'undefined' && 
+                (typeof THREE.OrbitControls !== 'undefined' || typeof window.OrbitControls !== 'undefined')) {
+                clearInterval(checkInterval);
+                resolve();
+            } else if (attempts >= maxAttempts) {
+                clearInterval(checkInterval);
+                reject(new Error('OrbitControls加载超时'));
+            }
+        }, 100);
+    });
+}
 
 /**
  * 初始化函数
@@ -294,24 +322,24 @@ function createAircraft() {
     // 机身
     const bodyGeo = new THREE.CylinderGeometry(0.5, 0.3, 8, 16);
     const body = new THREE.Mesh(bodyGeo, bodyMaterial);
-    body.rotation.z = Math.PI / 2;
+    body.rotation.x = Math.PI / 2;
     body.castShadow = true;
     body.receiveShadow = true;
     aircraftGroup.add(body);
     
-    // 机头
+    // 机头（朝向Z轴负方向）
     const noseGeo = new THREE.ConeGeometry(0.5, 2, 16);
     const nose = new THREE.Mesh(noseGeo, bodyMaterial);
-    nose.position.x = 5;
-    nose.rotation.z = -Math.PI / 2;
+    nose.position.z = -5;
+    nose.rotation.x = Math.PI / 2;
     nose.castShadow = true;
     aircraftGroup.add(nose);
     
     // 机尾
     const tailGeo = new THREE.ConeGeometry(0.3, 1.5, 16);
     const tail = new THREE.Mesh(tailGeo, bodyMaterial);
-    tail.position.x = -4.75;
-    tail.rotation.z = Math.PI / 2;
+    tail.position.z = 4.75;
+    tail.rotation.x = -Math.PI / 2;
     tail.castShadow = true;
     aircraftGroup.add(tail);
     
@@ -335,45 +363,44 @@ function createAircraft() {
     
     const wingGeo = new THREE.ExtrudeGeometry(wingShape, wingExtrudeSettings);
     const wing = new THREE.Mesh(wingGeo, wingMaterial);
-    wing.rotation.x = Math.PI / 2;
-    wing.position.y = 0;
-    wing.position.z = 0.15;
+    wing.rotation.y = Math.PI / 2;
+    wing.position.z = 0;
+    wing.position.x = 0.15;
     wing.castShadow = true;
     wing.receiveShadow = true;
     aircraftGroup.add(wing);
     
     // 尾翼（水平）
-    const hTailGeo = new THREE.BoxGeometry(2, 0.1, 3);
+    const hTailGeo = new THREE.BoxGeometry(3, 0.1, 2);
     const hTail = new THREE.Mesh(hTailGeo, wingMaterial);
-    hTail.position.set(-4, 0.5, 0);
+    hTail.position.set(0, 0.5, 4);
     hTail.castShadow = true;
     aircraftGroup.add(hTail);
     
     // 尾翼（垂直）
-    const vTailGeo = new THREE.BoxGeometry(1.5, 1.5, 0.1);
+    const vTailGeo = new THREE.BoxGeometry(0.1, 1.5, 1.5);
     const vTail = new THREE.Mesh(vTailGeo, wingMaterial);
-    vTail.position.set(-4.2, 1.2, 0);
+    vTail.position.set(0, 1.2, 4.2);
     vTail.castShadow = true;
     aircraftGroup.add(vTail);
     
     // 驾驶舱
     const cockpitGeo = new THREE.SphereGeometry(0.6, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2);
     const cockpit = new THREE.Mesh(cockpitGeo, glassMaterial);
-    cockpit.position.set(2.5, 0.4, 0);
-    cockpit.rotation.y = Math.PI / 2;
+    cockpit.position.set(0.4, 0.4, -2.5);
     aircraftGroup.add(cockpit);
     
     // 引擎
     const engineGeo = new THREE.CylinderGeometry(0.4, 0.3, 1.5, 16);
     const engine1 = new THREE.Mesh(engineGeo, bodyMaterial);
-    engine1.rotation.z = Math.PI / 2;
-    engine1.position.set(0, -0.5, 1.5);
+    engine1.rotation.x = Math.PI / 2;
+    engine1.position.set(1.5, -0.5, 0);
     engine1.castShadow = true;
     aircraftGroup.add(engine1);
     
     const engine2 = new THREE.Mesh(engineGeo, bodyMaterial);
-    engine2.rotation.z = Math.PI / 2;
-    engine2.position.set(0, -0.5, -1.5);
+    engine2.rotation.x = Math.PI / 2;
+    engine2.position.set(-1.5, -0.5, 0);
     engine2.castShadow = true;
     aircraftGroup.add(engine2);
     
@@ -445,21 +472,22 @@ function resetParticle(index, positions, colors, velocities, randomStart = false
 
 /**
  * 计算飞机对气流的影响（速度场）
+ * 飞机沿Z轴放置，机头朝向Z轴负方向（迎风）
  * @param {THREE.Vector3} position - 粒子位置
  * @returns {THREE.Vector3} - 速度修正量
  */
 function calculateVelocityField(position) {
     const correction = new THREE.Vector3(0, 0, 0);
     
-    // 机翼区域的影响
-    const wingStartX = -4;
-    const wingEndX = 4;
+    // 机翼区域的影响（飞机沿Z轴方向，机翼沿X轴展开）
+    const wingStartZ = -4;
+    const wingEndZ = 4;
     const wingSpan = 5;
     const wingThickness = 0.5;
     
     // 检查粒子是否在机翼影响区域
-    if (position.x > wingStartX && position.x < wingEndX &&
-        Math.abs(position.z) < wingSpan &&
+    if (position.z > wingStartZ && position.z < wingEndZ &&
+        Math.abs(position.x) < wingSpan &&
         position.y > -wingThickness && position.y < wingThickness + 2) {
         
         // 机翼上方加速（伯努利原理）
@@ -471,28 +499,28 @@ function calculateVelocityField(position) {
             // 轻微向上的升力效果
             correction.y += accelerationFactor * 0.03;
             
-            // 翼尖涡流
-            const distanceToTip = Math.max(0, Math.abs(position.z) - 3);
+            // 翼尖涡流（沿X轴的翼尖）
+            const distanceToTip = Math.max(0, Math.abs(position.x) - 3);
             if (distanceToTip < 1.5) {
                 const vortexStrength = (1.5 - distanceToTip) / 1.5;
-                correction.x += (position.z > 0 ? -1 : 1) * vortexStrength * 0.05;
-                correction.y += (position.z > 0 ? 1 : -1) * vortexStrength * 0.03;
+                correction.z += (position.x > 0 ? -1 : 1) * vortexStrength * 0.05;
+                correction.y += (position.x > 0 ? 1 : -1) * vortexStrength * 0.03;
             }
         } else {
             // 机翼下方稍慢
             correction.z -= 0.03;
         }
         
-        // 机头扰动
-        if (position.x > 3 && position.x < 6) {
-            const noseDist = Math.max(0, position.x - 3);
+        // 机头扰动（Z轴负方向为前）
+        if (position.z < -3 && position.z > -6) {
+            const noseDist = Math.max(0, -position.z - 3);
             correction.y += (1 - noseDist / 3) * 0.02;
-            correction.x -= (1 - noseDist / 3) * 0.01;
+            correction.x += (1 - noseDist / 3) * 0.01 * Math.sin(position.z * 2);
         }
         
         // 机尾扰动
-        if (position.x < -3 && position.x > -6) {
-            const tailDist = Math.max(0, -position.x - 3);
+        if (position.z > 3 && position.z < 6) {
+            const tailDist = Math.max(0, position.z - 3);
             correction.y -= (1 - tailDist / 3) * 0.02;
         }
     }
@@ -560,13 +588,33 @@ function updateParticles() {
  * 创建轨道控制器
  */
 function createControls() {
-    controls = new THREE.OrbitControls(camera, renderer.domElement);
+    // 确保OrbitControls可用
+    if (typeof THREE.OrbitControls !== 'undefined') {
+        controls = new THREE.OrbitControls(camera, renderer.domElement);
+    } else if (window.OrbitControls) {
+        controls = new window.OrbitControls(camera, renderer.domElement);
+    } else {
+        console.error('OrbitControls 未加载，请检查网络连接');
+        return;
+    }
+    
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
     controls.minDistance = 10;
     controls.maxDistance = 80;
     controls.maxPolarAngle = Math.PI * 0.85;
     controls.target.set(0, 0, 0);
+    
+    // 明确启用鼠标控制
+    controls.mouseButtons = {
+        LEFT: THREE.MOUSE.ROTATE,
+        MIDDLE: THREE.MOUSE.DOLLY,
+        RIGHT: THREE.MOUSE.PAN
+    };
+    
+    // 确保渲染器domElement可以接收鼠标事件
+    renderer.domElement.style.touchAction = 'none';
+    renderer.domElement.tabIndex = 0;
 }
 
 /**
@@ -594,7 +642,8 @@ function bindControls() {
     aoaSlider.addEventListener('input', (e) => {
         angleOfAttack = parseFloat(e.target.value);
         if (aircraft) {
-            aircraft.rotation.z = angleOfAttack * Math.PI / 180;
+            // 飞机沿Z轴方向，攻角绕X轴旋转
+            aircraft.rotation.x = angleOfAttack * Math.PI / 180;
         }
     });
     
@@ -622,8 +671,10 @@ function onWindowResize() {
 function animate() {
     animationId = requestAnimationFrame(animate);
     
-    // 更新控制器
-    controls.update();
+    // 更新控制器（安全检查）
+    if (controls) {
+        controls.update();
+    }
     
     // 更新粒子系统
     updateParticles();
