@@ -4,19 +4,43 @@
  * 1. 透明矩形风洞展示
  * 2. 飞机模型放置
  * 3. 动态气流粒子可视化
- * 4. 交互式视角控制
+ * 4. 交互式视角控制（自定义轨道控制器）
  * 5. 风速、攻角等参数调节
  */
 
 // ========== 全局变量 ==========
-let scene, camera, renderer, controls;
+let scene, camera, renderer;
 let windTunnel, aircraft;
-let particleSystem, particles, particleVelocities;
+let particleSystem, particleVelocities;
 let animationId;
 let isWindRunning = true;
 let windSpeed = 1.0;
 let angleOfAttack = 0;
 let particleCount = 2000;
+
+// 自定义轨道控制器状态
+let orbitControls = {
+    target: new THREE.Vector3(0, 0, 0),
+    distance: 35,
+    theta: Math.PI / 4,      // 水平角
+    phi: Math.PI / 4,        // 垂直角
+    minDistance: 10,
+    maxDistance: 80,
+    minPolarAngle: 0.1,
+    maxPolarAngle: Math.PI - 0.1,
+    dampingFactor: 0.05
+};
+
+// 鼠标状态
+let mouseState = {
+    isDragging: false,
+    isPanning: false,
+    previousX: 0,
+    previousY: 0,
+    rotationSpeed: 0.005,
+    zoomSpeed: 0.001,
+    panSpeed: 0.01
+};
 
 // 风洞尺寸参数
 const TUNNEL_LENGTH = 40;
@@ -24,36 +48,8 @@ const TUNNEL_WIDTH = 12;
 const TUNNEL_HEIGHT = 10;
 
 // ========== 初始化入口 ==========
-window.addEventListener('load', function() {
-    // 等待OrbitControls加载完成
-    waitForOrbitControls().then(init).catch(function(err) {
-        console.error('初始化失败:', err);
-        document.getElementById('loading').textContent = '加载失败，请刷新页面重试';
-    });
-});
+window.addEventListener('load', init);
 window.addEventListener('resize', onWindowResize);
-
-/**
- * 等待OrbitControls加载完成
- */
-function waitForOrbitControls() {
-    return new Promise(function(resolve, reject) {
-        var maxAttempts = 50; // 最多等待5秒
-        var attempts = 0;
-        
-        var checkInterval = setInterval(function() {
-            attempts++;
-            if (typeof THREE !== 'undefined' && 
-                (typeof THREE.OrbitControls !== 'undefined' || typeof window.OrbitControls !== 'undefined')) {
-                clearInterval(checkInterval);
-                resolve();
-            } else if (attempts >= maxAttempts) {
-                clearInterval(checkInterval);
-                reject(new Error('OrbitControls加载超时'));
-            }
-        }, 100);
-    });
-}
 
 /**
  * 初始化函数
@@ -80,8 +76,8 @@ function init() {
     // 创建粒子系统
     createParticleSystem();
     
-    // 添加轨道控制
-    createControls();
+    // 添加自定义轨道控制
+    createOrbitControls();
     
     // 绑定控制面板事件
     bindControls();
@@ -91,6 +87,176 @@ function init() {
     
     // 开始动画循环
     animate();
+}
+
+/**
+ * 创建自定义轨道控制器
+ */
+function createOrbitControls() {
+    const domElement = renderer.domElement;
+    
+    // 鼠标按下事件
+    domElement.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        
+        if (e.button === 0) {
+            // 左键：旋转
+            mouseState.isDragging = true;
+            domElement.style.cursor = 'grabbing';
+        } else if (e.button === 2) {
+            // 右键：平移
+            mouseState.isPanning = true;
+            domElement.style.cursor = 'move';
+        }
+        
+        mouseState.previousX = e.clientX;
+        mouseState.previousY = e.clientY;
+    });
+    
+    // 鼠标移动事件
+    domElement.addEventListener('mousemove', function(e) {
+        e.preventDefault();
+        
+        const deltaX = e.clientX - mouseState.previousX;
+        const deltaY = e.clientY - mouseState.previousY;
+        
+        if (mouseState.isDragging) {
+            // 旋转相机
+            orbitControls.theta -= deltaX * mouseState.rotationSpeed;
+            orbitControls.phi -= deltaY * mouseState.rotationSpeed;
+            
+            // 限制垂直角度
+            orbitControls.phi = Math.max(
+                orbitControls.minPolarAngle,
+                Math.min(orbitControls.maxPolarAngle, orbitControls.phi)
+            );
+        }
+        
+        if (mouseState.isPanning) {
+            // 平移目标点
+            const panOffset = new THREE.Vector3();
+            const cameraDirection = new THREE.Vector3();
+            camera.getWorldDirection(cameraDirection);
+            
+            const right = new THREE.Vector3();
+            right.crossVectors(cameraDirection, new THREE.Vector3(0, 1, 0)).normalize();
+            
+            const up = new THREE.Vector3(0, 1, 0);
+            
+            panOffset.addScaledVector(right, -deltaX * mouseState.panSpeed * orbitControls.distance * 0.1);
+            panOffset.addScaledVector(up, deltaY * mouseState.panSpeed * orbitControls.distance * 0.1);
+            
+            orbitControls.target.add(panOffset);
+        }
+        
+        mouseState.previousX = e.clientX;
+        mouseState.previousY = e.clientY;
+        
+        updateCameraPosition();
+    });
+    
+    // 鼠标释放事件
+    document.addEventListener('mouseup', function(e) {
+        mouseState.isDragging = false;
+        mouseState.isPanning = false;
+        domElement.style.cursor = 'grab';
+    });
+    
+    // 鼠标滚轮事件（缩放）
+    domElement.addEventListener('wheel', function(e) {
+        e.preventDefault();
+        const delta = e.deltaY * mouseState.zoomSpeed;
+        orbitControls.distance += delta * orbitControls.distance;
+        
+        // 限制距离范围
+        orbitControls.distance = Math.max(
+            orbitControls.minDistance,
+            Math.min(orbitControls.maxDistance, orbitControls.distance)
+        );
+        
+        updateCameraPosition();
+    }, { passive: false });
+    
+    // 触摸事件支持
+    let touchStartDistance = 0;
+    
+    domElement.addEventListener('touchstart', function(e) {
+        if (e.touches.length === 1) {
+            mouseState.isDragging = true;
+            mouseState.previousX = e.touches[0].clientX;
+            mouseState.previousY = e.touches[0].clientY;
+        } else if (e.touches.length === 2) {
+            const dx = e.touches[1].clientX - e.touches[0].clientX;
+            const dy = e.touches[1].clientY - e.touches[0].clientY;
+            touchStartDistance = Math.sqrt(dx * dx + dy * dy);
+        }
+    });
+    
+    domElement.addEventListener('touchmove', function(e) {
+        e.preventDefault();
+        
+        if (e.touches.length === 1 && mouseState.isDragging) {
+            const deltaX = e.touches[0].clientX - mouseState.previousX;
+            const deltaY = e.touches[0].clientY - mouseState.previousY;
+            
+            orbitControls.theta -= deltaX * mouseState.rotationSpeed * 1.5;
+            orbitControls.phi -= deltaY * mouseState.rotationSpeed * 1.5;
+            orbitControls.phi = Math.max(
+                orbitControls.minPolarAngle,
+                Math.min(orbitControls.maxPolarAngle, orbitControls.phi)
+            );
+            
+            mouseState.previousX = e.touches[0].clientX;
+            mouseState.previousY = e.touches[0].clientY;
+            
+            updateCameraPosition();
+        } else if (e.touches.length === 2) {
+            const dx = e.touches[1].clientX - e.touches[0].clientX;
+            const dy = e.touches[1].clientY - e.touches[0].clientY;
+            const currentDistance = Math.sqrt(dx * dx + dy * dy);
+            const delta = (touchStartDistance - currentDistance) * 0.05;
+            
+            orbitControls.distance += delta;
+            orbitControls.distance = Math.max(
+                orbitControls.minDistance,
+                Math.min(orbitControls.maxDistance, orbitControls.distance)
+            );
+            
+            touchStartDistance = currentDistance;
+            updateCameraPosition();
+        }
+    }, { passive: false });
+    
+    domElement.addEventListener('touchend', function() {
+        mouseState.isDragging = false;
+    });
+    
+    // 禁止右键菜单
+    domElement.addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+    });
+    
+    // 设置初始光标样式
+    domElement.style.cursor = 'grab';
+    domElement.style.touchAction = 'none';
+    
+    // 初始化相机位置
+    updateCameraPosition();
+}
+
+/**
+ * 根据轨道参数更新相机位置
+ */
+function updateCameraPosition() {
+    const x = orbitControls.target.x + orbitControls.distance * 
+              Math.sin(orbitControls.phi) * Math.sin(orbitControls.theta);
+    const y = orbitControls.target.y + orbitControls.distance * 
+              Math.cos(orbitControls.phi);
+    const z = orbitControls.target.z + orbitControls.distance * 
+              Math.sin(orbitControls.phi) * Math.cos(orbitControls.theta);
+    
+    camera.position.set(x, y, z);
+    camera.lookAt(orbitControls.target);
 }
 
 /**
@@ -112,8 +278,6 @@ function createCamera() {
         0.1,
         1000
     );
-    camera.position.set(25, 15, 25);
-    camera.lookAt(0, 0, 0);
 }
 
 /**
@@ -296,6 +460,7 @@ function createWindTunnel() {
 
 /**
  * 创建飞机模型（使用基本几何体组合）
+ * 飞机沿Z轴放置，机头朝向Z轴负方向（迎风）
  */
 function createAircraft() {
     const aircraftGroup = new THREE.Group();
@@ -319,7 +484,7 @@ function createAircraft() {
         shininess: 100
     });
     
-    // 机身
+    // 机身（沿Z轴方向）
     const bodyGeo = new THREE.CylinderGeometry(0.5, 0.3, 8, 16);
     const body = new THREE.Mesh(bodyGeo, bodyMaterial);
     body.rotation.x = Math.PI / 2;
@@ -327,7 +492,7 @@ function createAircraft() {
     body.receiveShadow = true;
     aircraftGroup.add(body);
     
-    // 机头（朝向Z轴负方向）
+    // 机头（朝向Z轴负方向，迎风）
     const noseGeo = new THREE.ConeGeometry(0.5, 2, 16);
     const nose = new THREE.Mesh(noseGeo, bodyMaterial);
     nose.position.z = -5;
@@ -343,7 +508,7 @@ function createAircraft() {
     tail.castShadow = true;
     aircraftGroup.add(tail);
     
-    // 主翼
+    // 主翼（沿X轴展开）
     const wingShape = new THREE.Shape();
     wingShape.moveTo(-4, 0);
     wingShape.lineTo(-2, 2.5);
@@ -456,7 +621,7 @@ function resetParticle(index, positions, colors, velocities, randomStart = false
         ? (Math.random() - 0.5) * TUNNEL_LENGTH 
         : -TUNNEL_LENGTH / 2 + 1;
     
-    // 初始速度（沿Z轴正方向）
+    // 初始速度（沿Z轴正方向，从入口流向出口）
     const baseSpeed = 0.2 + Math.random() * 0.1;
     velocities[i3] = (Math.random() - 0.5) * 0.02;
     velocities[i3 + 1] = (Math.random() - 0.5) * 0.02;
@@ -585,39 +750,6 @@ function updateParticles() {
 }
 
 /**
- * 创建轨道控制器
- */
-function createControls() {
-    // 确保OrbitControls可用
-    if (typeof THREE.OrbitControls !== 'undefined') {
-        controls = new THREE.OrbitControls(camera, renderer.domElement);
-    } else if (window.OrbitControls) {
-        controls = new window.OrbitControls(camera, renderer.domElement);
-    } else {
-        console.error('OrbitControls 未加载，请检查网络连接');
-        return;
-    }
-    
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
-    controls.minDistance = 10;
-    controls.maxDistance = 80;
-    controls.maxPolarAngle = Math.PI * 0.85;
-    controls.target.set(0, 0, 0);
-    
-    // 明确启用鼠标控制
-    controls.mouseButtons = {
-        LEFT: THREE.MOUSE.ROTATE,
-        MIDDLE: THREE.MOUSE.DOLLY,
-        RIGHT: THREE.MOUSE.PAN
-    };
-    
-    // 确保渲染器domElement可以接收鼠标事件
-    renderer.domElement.style.touchAction = 'none';
-    renderer.domElement.tabIndex = 0;
-}
-
-/**
  * 绑定控制面板事件
  */
 function bindControls() {
@@ -670,11 +802,6 @@ function onWindowResize() {
  */
 function animate() {
     animationId = requestAnimationFrame(animate);
-    
-    // 更新控制器（安全检查）
-    if (controls) {
-        controls.update();
-    }
     
     // 更新粒子系统
     updateParticles();
