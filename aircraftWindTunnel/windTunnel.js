@@ -35,6 +35,7 @@ let orbitControls = {
 let mouseState = {
     isDragging: false,
     isPanning: false,
+    activeButton: -1,  // -1=无, 0=左键, 1=中键, 2=右键
     previousX: 0,
     previousY: 0,
     rotationSpeed: 0.005,
@@ -98,14 +99,28 @@ function createOrbitControls() {
     // 鼠标按下事件
     domElement.addEventListener('mousedown', function(e) {
         e.preventDefault();
+        e.stopPropagation();
         
+        // 重置状态
+        mouseState.isDragging = false;
+        mouseState.isPanning = false;
+        
+        // 使用 e.button 检测按钮（0=左键, 1=中键, 2=右键）
+        // 同时检查 e.buttons 确保状态一致
         if (e.button === 0) {
             // 左键：旋转
             mouseState.isDragging = true;
+            mouseState.activeButton = 0;
             domElement.style.cursor = 'grabbing';
         } else if (e.button === 2) {
             // 右键：平移
             mouseState.isPanning = true;
+            mouseState.activeButton = 2;
+            domElement.style.cursor = 'move';
+        } else if (e.button === 1) {
+            // 中键：也可以用于平移
+            mouseState.isPanning = true;
+            mouseState.activeButton = 1;
             domElement.style.cursor = 'move';
         }
         
@@ -130,9 +145,9 @@ function createOrbitControls() {
                 orbitControls.minPolarAngle,
                 Math.min(orbitControls.maxPolarAngle, orbitControls.phi)
             );
-        }
-        
-        if (mouseState.isPanning) {
+            
+            updateCameraPosition();
+        } else if (mouseState.isPanning) {
             // 平移目标点
             const panOffset = new THREE.Vector3();
             const cameraDirection = new THREE.Vector3();
@@ -147,18 +162,27 @@ function createOrbitControls() {
             panOffset.addScaledVector(up, deltaY * mouseState.panSpeed * orbitControls.distance * 0.1);
             
             orbitControls.target.add(panOffset);
+            
+            updateCameraPosition();
         }
         
         mouseState.previousX = e.clientX;
         mouseState.previousY = e.clientY;
-        
-        updateCameraPosition();
     });
     
     // 鼠标释放事件
     document.addEventListener('mouseup', function(e) {
         mouseState.isDragging = false;
         mouseState.isPanning = false;
+        mouseState.activeButton = -1;
+        domElement.style.cursor = 'grab';
+    });
+    
+    // 鼠标离开画布时也重置状态
+    domElement.addEventListener('mouseleave', function(e) {
+        mouseState.isDragging = false;
+        mouseState.isPanning = false;
+        mouseState.activeButton = -1;
         domElement.style.cursor = 'grab';
     });
     
