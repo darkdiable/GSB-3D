@@ -6,14 +6,14 @@ scene.width = 1200
 scene.height = 800
 scene.background = color.black
 scene.autoscale = False
-scene.range = 60
+scene.range = 70
 
 sun_light = local_light(pos=vector(0, 0, 0), color=color.white)
 distant_light(direction=vector(1, 0, 0), color=color.gray(0.3))
 
 sun = sphere(
     pos=vector(0, 0, 0),
-    radius=5,
+    radius=4,
     color=color.yellow,
     emissive=True,
     shininess=1
@@ -31,7 +31,7 @@ sun_label = label(
 planets_data = [
     {
         "name": "Mercury",
-        "radius": 0.5,
+        "radius": 1.2,
         "orbit_radius": 10,
         "orbit_speed": 4.74,
         "rotation_speed": 0.03,
@@ -40,7 +40,7 @@ planets_data = [
     },
     {
         "name": "Venus",
-        "radius": 0.9,
+        "radius": 1.6,
         "orbit_radius": 14,
         "orbit_speed": 3.50,
         "rotation_speed": 0.005,
@@ -49,7 +49,7 @@ planets_data = [
     },
     {
         "name": "Earth",
-        "radius": 1.0,
+        "radius": 1.8,
         "orbit_radius": 18,
         "orbit_speed": 2.98,
         "rotation_speed": 0.1,
@@ -58,7 +58,7 @@ planets_data = [
     },
     {
         "name": "Mars",
-        "radius": 0.6,
+        "radius": 1.4,
         "orbit_radius": 23,
         "orbit_speed": 2.41,
         "rotation_speed": 0.09,
@@ -67,7 +67,7 @@ planets_data = [
     },
     {
         "name": "Jupiter",
-        "radius": 2.8,
+        "radius": 3.5,
         "orbit_radius": 32,
         "orbit_speed": 1.31,
         "rotation_speed": 0.2,
@@ -76,7 +76,7 @@ planets_data = [
     },
     {
         "name": "Saturn",
-        "radius": 2.4,
+        "radius": 3.0,
         "orbit_radius": 40,
         "orbit_speed": 0.97,
         "rotation_speed": 0.18,
@@ -85,7 +85,7 @@ planets_data = [
     },
     {
         "name": "Uranus",
-        "radius": 1.8,
+        "radius": 2.2,
         "orbit_radius": 48,
         "orbit_speed": 0.68,
         "rotation_speed": 0.15,
@@ -94,7 +94,7 @@ planets_data = [
     },
     {
         "name": "Neptune",
-        "radius": 1.7,
+        "radius": 2.1,
         "orbit_radius": 55,
         "orbit_speed": 0.54,
         "rotation_speed": 0.16,
@@ -111,8 +111,8 @@ for data in planets_data:
     orbit = ring(
         pos=vector(0, 0, 0),
         radius=data["orbit_radius"],
-        thickness=0.05,
-        color=color.gray(0.3),
+        thickness=0.1,
+        color=color.gray(0.4),
         axis=vector(0, 1, 0)
     )
     orbits.append(orbit)
@@ -139,8 +139,8 @@ for data in planets_data:
 
 saturn_ring = ring(
     pos=planets[5].pos,
-    radius=3.5,
-    thickness=0.15,
+    radius=4.5,
+    thickness=0.2,
     color=color.gray(0.8),
     axis=vector(0.5, 1, 0)
 )
