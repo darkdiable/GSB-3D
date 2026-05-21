@@ -28,7 +28,7 @@ class HUD:
         self.elements['speed_frame'] = speed_frame
 
         speed_label = OnscreenText(
-            text="车速",
+            text="Speed",
             parent=speed_frame,
             pos=(0, 0.07),
             fg=(1, 1, 1, 0.9),
@@ -100,7 +100,7 @@ class HUD:
         self.elements['lane_frame'] = lane_frame
 
         lane_label = OnscreenText(
-            text="当前车道",
+            text="Lane",
             parent=lane_frame,
             pos=(0, 0.07),
             fg=(1, 1, 1, 0.9),
@@ -179,7 +179,7 @@ class HUD:
         self.elements['status_frame'] = status_frame
 
         title_text = OnscreenText(
-            text="3D 高速行车模拟系统",
+            text="3D Highway Driving Simulation",
             parent=status_frame,
             pos=(0, 0.02),
             fg=(1, 0.8, 0.2, 1),
@@ -189,7 +189,7 @@ class HUD:
         self.elements['title_text'] = title_text
 
         instructions = [
-            "W/↑: 加速  |  S/↓: 刹车  |  A/←: 左转  |  D/→: 右转  |  ESC: 退出"
+            "W/↑: Accelerate  |  S/↓: Brake  |  A/←: Left  |  D/→: Right  |  ESC: Exit"
         ]
 
         y_pos = -0.75
@@ -215,7 +215,7 @@ class HUD:
         self.elements['stats_frame'] = stats_frame
 
         self.elements['avg_speed_label'] = OnscreenText(
-            text="平均速度: 0 km/h",
+            text="Avg Speed: 0 km/h",
             parent=stats_frame,
             pos=(0, 0.04),
             fg=(0.8, 0.8, 0.8, 1),
@@ -224,7 +224,7 @@ class HUD:
         )
 
         self.elements['max_speed_label'] = OnscreenText(
-            text="最高速度: 0 km/h",
+            text="Max Speed: 0 km/h",
             parent=stats_frame,
             pos=(0, -0.04),
             fg=(0.8, 0.8, 0.8, 1),
@@ -260,11 +260,11 @@ class HUD:
 
         if 'avg_speed_label' in self.elements:
             avg_speed = speed_monitor.get_average_speed()
-            self.elements['avg_speed_label'].setText(f"平均速度: {avg_speed:.1f} km/h")
+            self.elements['avg_speed_label'].setText(f"Avg Speed: {avg_speed:.1f} km/h")
 
         if 'max_speed_label' in self.elements:
             max_speed = speed_monitor.get_max_speed_recorded()
-            self.elements['max_speed_label'].setText(f"最高速度: {max_speed:.1f} km/h")
+            self.elements['max_speed_label'].setText(f"Max Speed: {max_speed:.1f} km/h")
 
     def _get_speed_color(self, speed: float) -> tuple:
         if speed > SPEED_LIMIT + 30:

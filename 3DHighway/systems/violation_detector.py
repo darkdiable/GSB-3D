@@ -64,7 +64,7 @@ class ViolationDetector:
                 elif over_amount > 10:
                     severity = "critical"
 
-                message = f"超速违章！当前车速: {current_speed:.1f} km/h，限速: {SPEED_LIMIT} km/h，超速: {over_amount:.1f} km/h"
+                message = f"Overspeed! Current: {current_speed:.1f} km/h, Limit: {SPEED_LIMIT} km/h, Over: {over_amount:.1f} km/h"
                 violation = Violation("overspeed", message, current_time, severity)
                 self._add_violation(violation)
                 self._last_overspeed_time = current_time
@@ -79,8 +79,8 @@ class ViolationDetector:
                 side = self.lane_detection.get_departure_side()
                 amount = self.lane_detection.get_departure_amount()
 
-                side_text = "左侧" if side == "left" else "右侧"
-                message = f"车道偏离警告！车辆已偏离{side_text}路面 {amount:.2f} 米"
+                side_text = "left" if side == "left" else "right"
+                message = f"Lane Departure! {side_text} side off road by {amount:.2f} m"
                 violation = Violation("lane_departure", message, current_time, "danger")
                 self._add_violation(violation)
                 self._last_lane_departure_time = current_time
@@ -95,8 +95,8 @@ class ViolationDetector:
                 side = self.lane_detection.get_crossing_side()
                 current_lane = self.lane_detection.get_current_lane()
 
-                side_text = "向左" if side == "left" else "向右"
-                message = f"车道压线警告！车辆{side_text}压线，当前车道: {current_lane + 1}"
+                side_text = "left" if side == "left" else "right"
+                message = f"Lane Crossing! {side_text} lane line, Lane: {current_lane + 1}"
                 violation = Violation("lane_crossing", message, current_time, "warning")
                 self._add_violation(violation)
                 self._last_line_crossing_time = current_time

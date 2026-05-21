@@ -48,7 +48,7 @@ class HighwaySimulation(ShowBase):
         self.taskMgr.add(self.update_camera, "update_camera")
 
         self.notification_system.show_custom_message(
-            "欢迎使用3D高速行车模拟系统！",
+            "Welcome to 3D Highway Driving Simulation!",
             "info",
             4.0
         )
@@ -130,18 +130,18 @@ class HighwaySimulation(ShowBase):
             self.camera_mode = 'third_person'
 
         self.notification_system.show_custom_message(
-            f"切换到 {self._get_camera_mode_name()} 视角",
+            f"Switched to {self._get_camera_mode_name()} view",
             "info",
             1.5
         )
 
     def _get_camera_mode_name(self) -> str:
         names = {
-            'third_person': '第三人称',
-            'top_down': '俯视',
-            'chase': '追逐'
+            'third_person': 'Third Person',
+            'top_down': 'Top Down',
+            'chase': 'Chase'
         }
-        return names.get(self.camera_mode, '未知')
+        return names.get(self.camera_mode, 'Unknown')
 
     def reset_car(self):
         start_x = self.road_builder.get_lane_center_x(1)
@@ -152,7 +152,7 @@ class HighwaySimulation(ShowBase):
         self.car.heading = 0.0
         self.speed_monitor.reset()
         self.notification_system.show_custom_message(
-            "车辆已重置",
+            "Vehicle Reset",
             "success",
             2.0
         )
