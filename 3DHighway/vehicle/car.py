@@ -58,8 +58,8 @@ class Car:
 
         cabin_material = Material()
         cabin_material.setDiffuse((0.1, 0.1, 0.2, 0.9))
-        cabin_material.setTransparency(TransparencyAttrib.MAlpha)
         cabin.setMaterial(cabin_material)
+        cabin.setTransparency(TransparencyAttrib.MAlpha)
 
         wheel_radius = 0.35
         wheel_thickness = 0.2
