@@ -1,16 +1,16 @@
 from panda3d.core import *
-from direct.showbase.ShowBase import ShowBase
 import math
+import random
 from config.settings import (
     ROAD_LENGTH, ROAD_WIDTH, LANE_COUNT, LANE_WIDTH,
     LINE_WIDTH, LINE_LENGTH, LINE_GAP
 )
+from utils.geometry_utils import create_box, create_sphere
 
 
 class RoadBuilder:
-    def __init__(self, render: NodePath, loader: Loader):
+    def __init__(self, render: NodePath):
         self.render = render
-        self.loader = loader
         self.road_root = self.render.attachNewNode("road_root")
         self.road_segments = []
         self.lane_lines = []
@@ -29,9 +29,11 @@ class RoadBuilder:
         segment_length = ROAD_LENGTH / road_segments
 
         for i in range(road_segments):
-            segment = self.loader.loadModel("models/box")
-            segment.reparentTo(self.road_root)
-            segment.setScale(ROAD_WIDTH / 2, segment_length / 2, 0.1)
+            segment = create_box(
+                self.road_root,
+                ROAD_WIDTH, segment_length, 0.2,
+                f"road_segment_{i}"
+            )
             segment.setPos(0, i * segment_length - ROAD_LENGTH / 2 + segment_length / 2, -0.1)
 
             material = Material()
@@ -50,9 +52,11 @@ class RoadBuilder:
             lane_x = -half_road + lane_idx * LANE_WIDTH
 
             for i in range(segments):
-                line = self.loader.loadModel("models/box")
-                line.reparentTo(self.road_root)
-                line.setScale(LINE_WIDTH / 2, LINE_LENGTH / 2, 0.01)
+                line = create_box(
+                    self.road_root,
+                    LINE_WIDTH, LINE_LENGTH, 0.02,
+                    f"lane_line_{lane_idx}_{i}"
+                )
                 line.setPos(
                     lane_x,
                     -ROAD_LENGTH / 2 + i * (LINE_LENGTH + LINE_GAP) + LINE_LENGTH / 2,
@@ -70,10 +74,12 @@ class RoadBuilder:
         half_road = ROAD_WIDTH / 2
         edge_offsets = [-half_road + LINE_WIDTH / 2, half_road - LINE_WIDTH / 2]
 
-        for x in edge_offsets:
-            line = self.loader.loadModel("models/box")
-            line.reparentTo(self.road_root)
-            line.setScale(LINE_WIDTH / 2, ROAD_LENGTH / 2, 0.01)
+        for idx, x in enumerate(edge_offsets):
+            line = create_box(
+                self.road_root,
+                LINE_WIDTH, ROAD_LENGTH, 0.02,
+                f"edge_line_{idx}"
+            )
             line.setPos(x, 0, 0.005)
 
             material = Material()
@@ -92,10 +98,12 @@ class RoadBuilder:
             (half_road + shoulder_width / 2, shoulder_width, (0.3, 0.3, 0.3, 1))
         ]
 
-        for x, width, color in shoulder_data:
-            shoulder = self.loader.loadModel("models/box")
-            shoulder.reparentTo(self.road_root)
-            shoulder.setScale(width / 2, ROAD_LENGTH / 2, 0.05)
+        for idx, (x, width, color) in enumerate(shoulder_data):
+            shoulder = create_box(
+                self.road_root,
+                width, ROAD_LENGTH, 0.1,
+                f"shoulder_{idx}"
+            )
             shoulder.setPos(x, 0, -0.05)
 
             material = Material()
@@ -116,10 +124,12 @@ class RoadBuilder:
             (half_road + 2.0 + grass_width / 2, grass_width)
         ]
 
-        for x, width in grass_data:
-            grass = self.loader.loadModel("models/box")
-            grass.reparentTo(self.road_root)
-            grass.setScale(width / 2, ROAD_LENGTH / 2, 0.1)
+        for idx, (x, width) in enumerate(grass_data):
+            grass = create_box(
+                self.road_root,
+                width, ROAD_LENGTH, 0.2,
+                f"grass_{idx}"
+            )
             grass.setPos(x, 0, -0.15)
 
             material = Material()
@@ -131,13 +141,15 @@ class RoadBuilder:
         post_spacing = 10.0
         post_count = int(ROAD_LENGTH / post_spacing) + 1
 
-        for side in [-1, 1]:
+        for side_idx, side in enumerate([-1, 1]):
             x = half_road + 1.0 if side == 1 else -half_road - 1.0
 
             for i in range(post_count):
-                post = self.loader.loadModel("models/box")
-                post.reparentTo(self.road_root)
-                post.setScale(0.15, 0.15, 0.6)
+                post = create_box(
+                    self.road_root,
+                    0.3, 0.3, 1.2,
+                    f"guardrail_post_{side_idx}_{i}"
+                )
                 post.setPos(side * x, -ROAD_LENGTH / 2 + i * post_spacing, 0.5)
 
                 material = Material()
@@ -145,9 +157,11 @@ class RoadBuilder:
                 post.setMaterial(material)
 
             for i in range(3):
-                rail = self.loader.loadModel("models/box")
-                rail.reparentTo(self.road_root)
-                rail.setScale(0.1, ROAD_LENGTH / 2, 0.1)
+                rail = create_box(
+                    self.road_root,
+                    0.2, ROAD_LENGTH, 0.2,
+                    f"guardrail_rail_{side_idx}_{i}"
+                )
                 rail.setPos(side * x, 0, 0.3 + i * 0.25)
 
                 material = Material()
@@ -155,7 +169,6 @@ class RoadBuilder:
                 rail.setMaterial(material)
 
     def _create_distant_trees(self):
-        import random
         half_road = ROAD_WIDTH / 2
         tree_count = 100
 
@@ -165,18 +178,24 @@ class RoadBuilder:
             y = -ROAD_LENGTH / 2 + random.random() * ROAD_LENGTH
             height = 2.0 + random.random() * 3.0
 
-            trunk = self.loader.loadModel("models/box")
-            trunk.reparentTo(self.road_root)
-            trunk.setScale(0.3, 0.3, height / 2)
+            trunk = create_box(
+                self.road_root,
+                0.6, 0.6, height,
+                f"tree_trunk_{i}"
+            )
             trunk.setPos(side * x, y, height / 2)
 
             trunk_material = Material()
             trunk_material.setDiffuse((0.4, 0.25, 0.1, 1))
             trunk.setMaterial(trunk_material)
 
-            crown = self.loader.loadModel("models/sphere")
-            crown.reparentTo(self.road_root)
-            crown.setScale(1.0 + random.random() * 0.5)
+            crown_radius = 1.0 + random.random() * 0.5
+            crown = create_sphere(
+                self.road_root,
+                crown_radius,
+                f"tree_crown_{i}",
+                8
+            )
             crown.setPos(side * x, y, height + 0.5)
 
             crown_material = Material()

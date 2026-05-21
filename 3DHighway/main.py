@@ -16,6 +16,7 @@ from systems.lane_detection import LaneDetection
 from systems.violation_detector import ViolationDetector
 from ui.hud import HUD
 from ui.notification import NotificationSystem
+from utils.geometry_utils import create_sphere
 
 
 class HighwaySimulation(ShowBase):
@@ -27,12 +28,12 @@ class HighwaySimulation(ShowBase):
         self._setup_background()
         self._setup_camera()
 
-        self.road_builder = RoadBuilder(self.render, self.loader)
+        self.road_builder = RoadBuilder(self.render)
         self.road_builder.build()
 
         start_x = self.road_builder.get_lane_center_x(1)
         start_y = -ROAD_LENGTH / 2 + 50
-        self.car = Car(self.render, self.loader, start_x, start_y)
+        self.car = Car(self.render, start_x, start_y)
 
         self.speed_monitor = SpeedMonitor()
         self.lane_detection = LaneDetection(self.road_builder)
@@ -78,18 +79,16 @@ class HighwaySimulation(ShowBase):
         self._create_sky_dome()
 
     def _create_sky_dome(self):
-        sky = self.loader.loadModel("models/sphere")
-        if sky:
-            sky.reparentTo(self.render)
-            sky.setScale(800)
-            sky.setP(90)
-            sky.setBin('background', 1)
-            sky.setDepthWrite(0)
-            sky.setLightOff()
+        sky = create_sphere(self.render, 1, "sky_dome", 16)
+        sky.setScale(800)
+        sky.setP(90)
+        sky.setBin('background', 1)
+        sky.setDepthWrite(0)
+        sky.setLightOff()
 
-            sky_material = Material()
-            sky_material.setDiffuse((0.5, 0.7, 0.95, 1))
-            sky.setMaterial(sky_material)
+        sky_material = Material()
+        sky_material.setDiffuse((0.5, 0.7, 0.95, 1))
+        sky.setMaterial(sky_material)
 
     def _setup_camera(self):
         self.cam_distance = CAMERA_DISTANCE

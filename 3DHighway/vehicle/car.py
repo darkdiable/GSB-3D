@@ -1,17 +1,16 @@
 from panda3d.core import *
-from direct.showbase.ShowBase import ShowBase
 import math
 from config.settings import (
     CAR_WIDTH, CAR_LENGTH, CAR_HEIGHT, CAR_MAX_SPEED,
     CAR_ACCELERATION, CAR_BRAKE, CAR_TURN_SPEED, CAR_FRICTION,
     SPEED_CONVERSION, ROAD_WIDTH, ROAD_LENGTH
 )
+from utils.geometry_utils import create_box, create_sphere, create_torus
 
 
 class Car:
-    def __init__(self, render: NodePath, loader: Loader, start_x: float = 0, start_y: float = 0):
+    def __init__(self, render: NodePath, start_x: float = 0, start_y: float = 0):
         self.render = render
-        self.loader = loader
         self.car_root = self.render.attachNewNode("car_root")
 
         self.x = start_x
@@ -37,9 +36,11 @@ class Car:
         self._update_position()
 
     def _build_car_model(self):
-        body = self.loader.loadModel("models/box")
-        body.reparentTo(self.car_root)
-        body.setScale(CAR_LENGTH / 2, CAR_WIDTH / 2, CAR_HEIGHT / 2)
+        body = create_box(
+            self.car_root,
+            CAR_LENGTH, CAR_WIDTH, CAR_HEIGHT,
+            "car_body"
+        )
         body.setPos(0, 0, CAR_HEIGHT / 2)
 
         body_material = Material()
@@ -48,9 +49,11 @@ class Car:
         body_material.setShininess(50)
         body.setMaterial(body_material)
 
-        cabin = self.loader.loadModel("models/box")
-        cabin.reparentTo(self.car_root)
-        cabin.setScale(CAR_LENGTH * 0.4, CAR_WIDTH * 0.85, CAR_HEIGHT * 0.5)
+        cabin = create_box(
+            self.car_root,
+            CAR_LENGTH * 0.8, CAR_WIDTH * 0.85, CAR_HEIGHT * 0.5,
+            "car_cabin"
+        )
         cabin.setPos(-CAR_LENGTH * 0.1, 0, CAR_HEIGHT * 0.75)
 
         cabin_material = Material()
@@ -59,7 +62,7 @@ class Car:
         cabin.setMaterial(cabin_material)
 
         wheel_radius = 0.35
-        wheel_width = 0.2
+        wheel_thickness = 0.2
         wheel_positions = [
             (CAR_LENGTH * 0.35, CAR_WIDTH * 0.55, wheel_radius),
             (CAR_LENGTH * 0.35, -CAR_WIDTH * 0.55, wheel_radius),
@@ -69,28 +72,33 @@ class Car:
 
         self.wheels = []
         for i, (wx, wy, wz) in enumerate(wheel_positions):
-            wheel = self.loader.loadModel("models/torus")
-            if wheel:
-                wheel.reparentTo(self.car_root)
-                wheel.setScale(wheel_radius, wheel_radius, wheel_width)
-                wheel.setPos(wx, wy, wz)
-                wheel.setP(90)
+            wheel = create_torus(
+                self.car_root,
+                wheel_radius, wheel_thickness / 2,
+                f"car_wheel_{i}",
+                12
+            )
+            wheel.setPos(wx, wy, wz)
+            wheel.setP(90)
 
-                wheel_material = Material()
-                wheel_material.setDiffuse((0.05, 0.05, 0.05, 1))
-                wheel.setMaterial(wheel_material)
+            wheel_material = Material()
+            wheel_material.setDiffuse((0.05, 0.05, 0.05, 1))
+            wheel.setMaterial(wheel_material)
 
-                self.wheels.append(wheel)
+            self.wheels.append(wheel)
 
         headlight_data = [
             (CAR_LENGTH * 0.48, CAR_WIDTH * 0.35, CAR_HEIGHT * 0.4),
             (CAR_LENGTH * 0.48, -CAR_WIDTH * 0.35, CAR_HEIGHT * 0.4)
         ]
 
-        for hx, hy, hz in headlight_data:
-            headlight = self.loader.loadModel("models/sphere")
-            headlight.reparentTo(self.car_root)
-            headlight.setScale(0.15)
+        for i, (hx, hy, hz) in enumerate(headlight_data):
+            headlight = create_sphere(
+                self.car_root,
+                0.15,
+                f"headlight_{i}",
+                8
+            )
             headlight.setPos(hx, hy, hz)
 
             hl_material = Material()
@@ -103,10 +111,13 @@ class Car:
             (-CAR_LENGTH * 0.48, -CAR_WIDTH * 0.35, CAR_HEIGHT * 0.4)
         ]
 
-        for tx, ty, tz in taillight_data:
-            taillight = self.loader.loadModel("models/sphere")
-            taillight.reparentTo(self.car_root)
-            taillight.setScale(0.12)
+        for i, (tx, ty, tz) in enumerate(taillight_data):
+            taillight = create_sphere(
+                self.car_root,
+                0.12,
+                f"taillight_{i}",
+                8
+            )
             taillight.setPos(tx, ty, tz)
 
             tl_material = Material()

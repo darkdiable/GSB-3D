@@ -233,8 +233,7 @@ class HUD:
         )
 
     def _get_font(self):
-        font = loader.loadFont("models/arial.ttf") if loader.loadFont("models/arial.ttf") else None
-        return font
+        return None
 
     def update(self, car: Car, speed_monitor: SpeedMonitor, lane_detection: LaneDetection):
         current_speed = speed_monitor.get_current_speed()
