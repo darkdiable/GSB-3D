@@ -68,21 +68,23 @@ class NotificationSystem:
             scale=0.045
         )
 
-        timer_bar_bg = DirectFrame(
-            parent=frame,
-            pos=(0, 0, -frame_height / 2 + 0.015),
-            frameSize=(-frame_width / 2 + 0.02, frame_width / 2 - 0.02, -0.008, 0.008),
-            frameColor=(0, 0, 0, 0.5),
-            relief=DGG.FLAT
-        )
+        bar_full_width = frame_width - 0.04
+        bar_left = -frame_width / 2 + 0.02
 
-        timer_bar = DirectFrame(
-            parent=frame,
-            pos=(-frame_width / 2 + 0.02, 0, -frame_height / 2 + 0.015),
-            frameSize=(0, frame_width - 0.04, -0.008, 0.008),
-            frameColor=(1, 1, 1, 0.8),
-            relief=DGG.FLAT
-        )
+        timer_bg_card = CardMaker("timer_bar_bg")
+        timer_bg_card.setFrame(0, bar_full_width, -0.008, 0.008)
+        timer_bg_card.setColor(0, 0, 0, 0.5)
+        timer_bar_bg = frame.attachNewNode(timer_bg_card.generate())
+        timer_bar_bg.setPos(bar_left, 0, -frame_height / 2 + 0.015)
+        timer_bar_bg.setTransparency(TransparencyAttrib.MAlpha)
+
+        timer_card = CardMaker("timer_bar")
+        timer_card.setFrame(0, 1, -0.008, 0.008)
+        timer_card.setColor(1, 1, 1, 0.8)
+        timer_bar = frame.attachNewNode(timer_card.generate())
+        timer_bar.setPos(bar_left, 0, -frame_height / 2 + 0.015)
+        timer_bar.setScale(bar_full_width, 1, 1)
+        timer_bar.setTransparency(TransparencyAttrib.MAlpha)
 
         notif_data = {
             'violation': violation,
@@ -114,8 +116,8 @@ class NotificationSystem:
             else:
                 progress = remaining / notif['duration']
                 frame_width = 0.8
-                bar_width = (frame_width - 0.04) * progress
-                notif['timer_bar'].setFrame(0, bar_width, -0.008, 0.008)
+                full_bar_width = frame_width - 0.04
+                notif['timer_bar'].setSx(progress)
 
                 alpha = min(1, remaining / 1.0)
                 color = notif['frame'].getColor()
