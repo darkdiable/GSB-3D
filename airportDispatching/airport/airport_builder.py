@@ -3,6 +3,7 @@ from config.settings import (
     AIRPORT_SIZE, RUNWAY_LENGTH, RUNWAY_WIDTH,
     NUM_GATES, GATE_SIZE, GATE_COLORS
 )
+from utils.model_builder import create_box
 
 
 class AirportBuilder:
@@ -25,9 +26,8 @@ class AirportBuilder:
     def _create_ground(self):
         self.airport_node = self.render.attachNewNode('airport')
 
-        ground = self.loader.loadModel("models/box")
+        ground = create_box(AIRPORT_SIZE, AIRPORT_SIZE, 1)
         ground.reparentTo(self.airport_node)
-        ground.setScale(AIRPORT_SIZE, AIRPORT_SIZE, 1)
         ground.setPos(0, 0, -0.5)
 
         ground_material = Material()
@@ -36,9 +36,8 @@ class AirportBuilder:
         ground.setMaterial(ground_material)
 
         grass_node = self.render.attachNewNode('grass')
-        grass = self.loader.loadModel("models/box")
+        grass = create_box(AIRPORT_SIZE * 2, AIRPORT_SIZE * 2, 1)
         grass.reparentTo(grass_node)
-        grass.setScale(AIRPORT_SIZE * 2, AIRPORT_SIZE * 2, 1)
         grass.setPos(0, 0, -1)
 
         grass_material = Material()
@@ -48,9 +47,8 @@ class AirportBuilder:
     def _create_runway(self):
         self.runway_node = self.airport_node.attachNewNode('runway')
 
-        runway = self.loader.loadModel("models/box")
+        runway = create_box(RUNWAY_WIDTH, RUNWAY_LENGTH, 0.2)
         runway.reparentTo(self.runway_node)
-        runway.setScale(RUNWAY_WIDTH, RUNWAY_LENGTH, 0.2)
         runway.setPos(0, 0, 0.1)
 
         runway_material = Material()
@@ -79,15 +77,13 @@ class AirportBuilder:
         line_segments.moveTo(RUNWAY_WIDTH / 2 - 1, -RUNWAY_LENGTH / 2 + 2, 0.21)
         line_segments.drawTo(RUNWAY_WIDTH / 2 - 1, RUNWAY_LENGTH / 2 - 2, 0.21)
 
-        threshold = self.loader.loadModel("models/box")
+        threshold = create_box(RUNWAY_WIDTH - 2, 3, 0.22)
         threshold.reparentTo(self.runway_node)
-        threshold.setScale(RUNWAY_WIDTH - 2, 3, 0.22)
         threshold.setPos(0, -RUNWAY_LENGTH / 2 + 1.5, 0.11)
         threshold.setColor(1, 1, 1, 1)
 
-        threshold2 = self.loader.loadModel("models/box")
+        threshold2 = create_box(RUNWAY_WIDTH - 2, 3, 0.22)
         threshold2.reparentTo(self.runway_node)
-        threshold2.setScale(RUNWAY_WIDTH - 2, 3, 0.22)
         threshold2.setPos(0, RUNWAY_LENGTH / 2 - 1.5, 0.11)
         threshold2.setColor(1, 1, 1, 1)
 
@@ -107,9 +103,8 @@ class AirportBuilder:
             gate_node = self.airport_node.attachNewNode(f'gate_{i}')
             gate_node.setPos(*pos)
 
-            gate = self.loader.loadModel("models/box")
+            gate = create_box(GATE_SIZE, GATE_SIZE, 0.3)
             gate.reparentTo(gate_node)
-            gate.setScale(GATE_SIZE, GATE_SIZE, 0.3)
             gate.setPos(0, 0, 0.15)
 
             gate_material = Material()
@@ -127,9 +122,8 @@ class AirportBuilder:
             label_np.setScale(1.5)
             label_np.setBillboardPointEye()
 
-            border = self.loader.loadModel("models/box")
+            border = create_box(GATE_SIZE + 0.5, GATE_SIZE + 0.5, 0.1)
             border.reparentTo(gate_node)
-            border.setScale(GATE_SIZE + 0.5, GATE_SIZE + 0.5, 0.1)
             border.setPos(0, 0, 0.05)
             border.setColor(0.1, 0.1, 0.1, 1)
 

@@ -43,12 +43,11 @@ class DispatchBoard:
 
     def _create_title(self):
         title_text = OnscreenText(
-            text="✈ 机场调度板",
+            text="机场调度板",
             pos=(-1, 0.85),
             scale=0.09,
             fg=(0.8, 0.9, 1.0, 1),
-            align=TextNode.ACenter,
-            font=self.base.loader.loadFont('models/arial.ttf', okMissing=True)
+            align=TextNode.ACenter
         )
 
         subtitle = OnscreenText(

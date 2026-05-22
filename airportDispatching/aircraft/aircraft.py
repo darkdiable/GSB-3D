@@ -10,6 +10,7 @@ from utils.helpers import (
     generate_flight_number, lerp_vector, distance,
     get_angle_to_point, lerp
 )
+from utils.model_builder import create_box, create_sphere, create_cylinder
 
 
 class Aircraft:
@@ -36,9 +37,8 @@ class Aircraft:
 
         self.body_node = self.node.attachNewNode('body')
 
-        fuselage = loader.loadModel("models/box")
+        fuselage = create_box(1.2, 4, 0.8)
         fuselage.reparentTo(self.body_node)
-        fuselage.setScale(1.2, 4, 0.8)
         fuselage.setPos(0, 0, 0.8)
 
         fuselage_material = Material()
@@ -48,15 +48,14 @@ class Aircraft:
         fuselage_material.setShininess(50)
         fuselage.setMaterial(fuselage_material)
 
-        nose = loader.loadModel("models/sphere")
+        nose = create_sphere(1.0)
         nose.reparentTo(self.body_node)
         nose.setScale(1.2, 1.5, 0.8)
         nose.setPos(0, 2.5, 0.8)
         nose.setMaterial(fuselage_material)
 
-        tail = loader.loadModel("models/box")
+        tail = create_box(0.8, 0.2, 2)
         tail.reparentTo(self.body_node)
-        tail.setScale(0.8, 0.2, 2)
         tail.setPos(0, -1.8, 1.8)
 
         tail_material = Material()
@@ -64,33 +63,30 @@ class Aircraft:
         tail_material.setDiffuse(tail_color)
         tail.setMaterial(tail_material)
 
-        vertical_tail = loader.loadModel("models/box")
+        vertical_tail = create_box(0.15, 1.2, 1.8)
         vertical_tail.reparentTo(self.body_node)
-        vertical_tail.setScale(0.15, 1.2, 1.8)
         vertical_tail.setPos(0, -1.8, 2.2)
         vertical_tail.setMaterial(tail_material)
 
-        wing = loader.loadModel("models/box")
+        wing = create_box(5, 0.8, 0.15)
         wing.reparentTo(self.body_node)
-        wing.setScale(5, 0.8, 0.15)
         wing.setPos(0, -0.5, 0.8)
         wing.setMaterial(fuselage_material)
 
-        rear_wing = loader.loadModel("models/box")
+        rear_wing = create_box(1.8, 0.4, 0.15)
         rear_wing.reparentTo(self.body_node)
-        rear_wing.setScale(1.8, 0.4, 0.15)
         rear_wing.setPos(0, -2, 1.3)
         rear_wing.setMaterial(fuselage_material)
 
-        engine1 = loader.loadModel("models/cylinder")
+        engine1 = create_cylinder(0.4, 1)
         engine1.reparentTo(self.body_node)
-        engine1.setScale(0.4, 0.4, 1)
+        engine1.setScale(1, 1, 1)
         engine1.setPos(1.8, -0.3, 0.5)
         engine1.setP(90)
 
-        engine2 = loader.loadModel("models/cylinder")
+        engine2 = create_cylinder(0.4, 1)
         engine2.reparentTo(self.body_node)
-        engine2.setScale(0.4, 0.4, 1)
+        engine2.setScale(1, 1, 1)
         engine2.setPos(-1.8, -0.3, 0.5)
         engine2.setP(90)
 
@@ -99,9 +95,9 @@ class Aircraft:
         engine1.setMaterial(engine_material)
         engine2.setMaterial(engine_material)
 
-        cockpit = loader.loadModel("models/sphere")
+        cockpit = create_sphere(0.7)
         cockpit.reparentTo(self.body_node)
-        cockpit.setScale(0.7, 0.9, 0.6)
+        cockpit.setScale(1, 1.3, 0.9)
         cockpit.setPos(0, 1.5, 1.1)
 
         cockpit_material = Material()
