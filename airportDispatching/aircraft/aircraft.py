@@ -117,21 +117,21 @@ class Aircraft:
         label_text.setText(self.flight_number)
         label_text.setAlign(TextNode.ACenter)
         label_text.setTextColor(1, 1, 1, 1)
-        label_text.setScale(0.8)
 
         bg = TextNode(f'label_bg_{self.flight_number}')
         bg.setText(self.flight_number)
         bg.setAlign(TextNode.ACenter)
         bg.setTextColor(0, 0, 0, 0.7)
-        bg.setScale(0.82)
 
         bg_node = self.node.attachNewNode(bg)
         bg_node.setPos(0, 0, 3.5)
+        bg_node.setScale(0.82)
         bg_node.setBillboardPointEye()
         bg_node.setDepthWrite(False)
 
         self.label_node = self.node.attachNewNode(label_text)
         self.label_node.setPos(0, 0, 3.5)
+        self.label_node.setScale(0.8)
         self.label_node.setBillboardPointEye()
         self.label_node.setDepthWrite(False)
 
@@ -139,10 +139,10 @@ class Aircraft:
         status_text.setText('等待')
         status_text.setAlign(TextNode.ACenter)
         status_text.setTextColor(1, 1, 0.4, 1)
-        status_text.setScale(0.5)
 
         self.status_label_node = self.node.attachNewNode(status_text)
         self.status_label_node.setPos(0, 0, 4.3)
+        self.status_label_node.setScale(0.5)
         self.status_label_node.setBillboardPointEye()
         self.status_label_node.setDepthWrite(False)
 

@@ -122,9 +122,9 @@ class AirportBuilder:
             label.setText(f'{i + 1}')
             label.setAlign(TextNode.ACenter)
             label.setTextColor(1, 1, 1, 1)
-            label.setScale(1.5)
             label_np = gate_node.attachNewNode(label)
             label_np.setPos(0, 0, 1)
+            label_np.setScale(1.5)
             label_np.setBillboardPointEye()
 
             border = self.loader.loadModel("models/box")
