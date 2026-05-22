@@ -102,8 +102,9 @@ class Aircraft:
 
         cockpit_material = Material()
         cockpit_material.setDiffuse((0.3, 0.5, 0.7, 1))
-        cockpit_material.setTransparency(TransparencyAttrib.MAlpha)
         cockpit.setMaterial(cockpit_material)
+        cockpit.setColor(0.3, 0.5, 0.7, 0.7)
+        cockpit.setTransparency(TransparencyAttrib.MAlpha)
 
         self._create_label(loader)
         return self
