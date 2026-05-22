@@ -11,6 +11,7 @@ from utils.helpers import (
     get_angle_to_point, lerp
 )
 from utils.model_builder import create_box, create_sphere, create_cylinder
+from utils.font_loader import get_font
 
 
 class Aircraft:
@@ -110,15 +111,21 @@ class Aircraft:
         return self
 
     def _create_label(self, loader):
+        font = get_font(loader, size=16)
+
         label_text = TextNode(f'label_{self.flight_number}')
         label_text.setText(self.flight_number)
         label_text.setAlign(TextNode.ACenter)
         label_text.setTextColor(1, 1, 1, 1)
+        if font:
+            label_text.setFont(font)
 
         bg = TextNode(f'label_bg_{self.flight_number}')
         bg.setText(self.flight_number)
         bg.setAlign(TextNode.ACenter)
         bg.setTextColor(0, 0, 0, 0.7)
+        if font:
+            bg.setFont(font)
 
         bg_node = self.node.attachNewNode(bg)
         bg_node.setPos(0, 0, 3.5)
@@ -133,9 +140,11 @@ class Aircraft:
         self.label_node.setDepthWrite(False)
 
         status_text = TextNode(f'status_{self.flight_number}')
-        status_text.setText('等待')
+        status_text.setText('WAITING')
         status_text.setAlign(TextNode.ACenter)
         status_text.setTextColor(1, 1, 0.4, 1)
+        if font:
+            status_text.setFont(font)
 
         self.status_label_node = self.node.attachNewNode(status_text)
         self.status_label_node.setPos(0, 0, 4.3)

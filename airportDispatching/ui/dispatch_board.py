@@ -43,7 +43,7 @@ class DispatchBoard:
 
     def _create_title(self):
         title_text = OnscreenText(
-            text="机场调度板",
+            text="DISPATCH BOARD",
             pos=(-1, 0.85),
             scale=0.09,
             fg=(0.8, 0.9, 1.0, 1),
@@ -51,7 +51,7 @@ class DispatchBoard:
         )
 
         subtitle = OnscreenText(
-            text="AIRPORT DISPATCH BOARD",
+            text="AIRPORT FLIGHT MONITOR",
             pos=(-1, 0.76),
             scale=0.04,
             fg=(0.5, 0.7, 0.9, 1),
@@ -65,7 +65,7 @@ class DispatchBoard:
             pos=(0, 0, 0)
         )
 
-        headers = ["航班号", "类型", "状态", "停机位"]
+        headers = ["Flight", "Type", "Status", "Gate"]
         positions = [-0.45, -0.15, 0.15, 0.45]
         for i, header in enumerate(headers):
             OnscreenText(
@@ -101,7 +101,7 @@ class DispatchBoard:
         )
 
         OnscreenText(
-            text="选中航班信息",
+            text="Selected Flight",
             pos=(0.7, 0.08),
             scale=0.05,
             fg=(0.8, 0.9, 1.0, 1),
@@ -141,7 +141,7 @@ class DispatchBoard:
         )
 
         OnscreenText(
-            text="操作说明",
+            text="Controls",
             pos=(0.7, 0.05),
             scale=0.045,
             fg=(0.8, 0.9, 1.0, 1),
@@ -149,11 +149,11 @@ class DispatchBoard:
         )
 
         controls = [
-            "鼠标点击飞机: 切换状态",
-            "方向键: 旋转视角",
-            "W/S: 缩放",
-            "R: 重置视角",
-            "空格: 暂停/继续"
+            "Click aircraft: Toggle status",
+            "Arrow keys: Rotate view",
+            "W/S: Zoom in/out",
+            "R: Reset view",
+            "Space: Pause/Resume"
         ]
 
         y_pos = -0.02
@@ -195,7 +195,7 @@ class DispatchBoard:
                     pos=(0, 0, 0)
                 )
 
-            flight_type = "出发" if aircraft.is_departure else "到达"
+            flight_type = "DEPARTURE" if aircraft.is_departure else "ARRIVAL"
             status_label = STATUS_LABELS.get(aircraft.status, aircraft.status)
             status_color = STATUS_COLORS.get(aircraft.status, (1, 1, 1, 1))
 
@@ -233,12 +233,12 @@ class DispatchBoard:
         if aircraft:
             self.info_flight_number.setText(aircraft.flight_number)
             status_label = STATUS_LABELS.get(aircraft.status, aircraft.status)
-            self.info_status.setText(f"状态: {status_label}")
-            gate_text = f"停机位: {aircraft.gate_id + 1}" if aircraft.gate_id is not None else "停机位: 无"
+            self.info_status.setText(f"Status: {status_label}")
+            gate_text = f"Gate: {aircraft.gate_id + 1}" if aircraft.gate_id is not None else "Gate: None"
             self.info_gate.setText(gate_text)
         else:
             self.info_flight_number.setText("")
-            self.info_status.setText("点击飞机选择")
+            self.info_status.setText("Click aircraft to select")
             self.info_gate.setText("")
 
     def show_message(self, message, duration=2):

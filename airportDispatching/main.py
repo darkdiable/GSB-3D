@@ -129,8 +129,8 @@ class AirportDispatchingApp(ShowBase):
 
     def toggle_pause(self):
         self.paused = not self.paused
-        status = "已暂停" if self.paused else "已继续"
-        self.dispatch_board.show_message(f"调度系统{status}")
+        status = "PAUSED" if self.paused else "RESUMED"
+        self.dispatch_board.show_message(f"Dispatch system {status}")
 
     def on_mouse_click(self):
         if self.mouseWatcherNode.hasMouse():
@@ -156,7 +156,7 @@ class AirportDispatchingApp(ShowBase):
 
         if aircraft.status == STATUS_TAKEOFF or aircraft.status == STATUS_LANDING:
             self.dispatch_board.show_message(
-                f"航班 {aircraft.flight_number} 正在{STATUS_LABELS.get(aircraft.status, '')}中，无法切换"
+                f"Flight {aircraft.flight_number} is {STATUS_LABELS.get(aircraft.status, '')}, cannot toggle"
             )
             self.dispatch_board.update_board(self.dispatcher.get_all_aircrafts())
             return
@@ -164,11 +164,11 @@ class AirportDispatchingApp(ShowBase):
         result = self.dispatcher.toggle_aircraft_status(aircraft)
 
         messages = {
-            'takeoff_requested': f"航班 {aircraft.flight_number} 请求起飞",
-            'landing_requested': f"航班 {aircraft.flight_number} 请求降落",
-            'request_failed': f"跑道繁忙或无可用停机位，请稍后再试",
-            'paused': f"航班 {aircraft.flight_number} 已暂停，返回等待状态",
-            'cannot_toggle_in_flight': f"航班正在飞行中，无法切换",
+            'takeoff_requested': f"Flight {aircraft.flight_number} takeoff request",
+            'landing_requested': f"Flight {aircraft.flight_number} landing request",
+            'request_failed': f"Runway busy or no gates available, please try again",
+            'paused': f"Flight {aircraft.flight_number} paused, returning to waiting state",
+            'cannot_toggle_in_flight': f"Flight in progress, cannot toggle",
         }
 
         msg = messages.get(result, "")
@@ -222,7 +222,7 @@ class AirportDispatchingApp(ShowBase):
 
     def add_title(self):
         title = OnscreenText(
-            text="3D 机场航班调度模拟系统",
+            text="3D Airport Flight Dispatch Simulation",
             pos=(0, 0.92),
             fg=(0.95, 0.95, 1.0, 1),
             bg=(0.1, 0.15, 0.3, 0.8),
@@ -231,7 +231,7 @@ class AirportDispatchingApp(ShowBase):
         )
 
         status_title = OnscreenText(
-            text="跑道状态: " + ("空闲" if not self.dispatcher.runway_busy else "使用中"),
+            text="Runway Status: " + ("AVAILABLE" if not self.dispatcher.runway_busy else "IN USE"),
             pos=(0, 0.85),
             fg=(0.6, 1.0, 0.6, 1) if not self.dispatcher.runway_busy else (1.0, 0.6, 0.6, 1),
             align=TextNode.ACenter,
@@ -244,7 +244,7 @@ class AirportDispatchingApp(ShowBase):
             if hasattr(self, 'status_title') and self.status_title:
                 is_busy = self.dispatcher.runway_busy
                 self.status_title.setText(
-                    "跑道状态: " + ("空闲" if not is_busy else "使用中")
+                    "Runway Status: " + ("AVAILABLE" if not is_busy else "IN USE")
                 )
                 self.status_title.setFg(
                     (0.6, 1.0, 0.6, 1) if not is_busy else (1.0, 0.6, 0.6, 1)
