@@ -103,6 +103,19 @@ function SceneContent() {
         minPolarAngle={0.2}
         enablePan={true}
         enabled={!autoRotate}
+        mouseButtons={{
+          LEFT: THREE.MOUSE.ROTATE,
+          MIDDLE: THREE.MOUSE.DOLLY,
+          RIGHT: THREE.MOUSE.PAN,
+        }}
+        touches={{
+          ONE: THREE.TOUCH.ROTATE,
+          TWO: THREE.TOUCH.DOLLY_PAN,
+        }}
+        screenSpacePanning={true}
+        panSpeed={1.0}
+        rotateSpeed={0.5}
+        zoomSpeed={0.8}
       />
       
       {/* 后处理效果 */}

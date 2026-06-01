@@ -174,8 +174,11 @@ export function ControlPanel() {
       
       {/* 操作提示 */}
       <div className="mt-6 pt-4 border-t border-wind-tunnel-border">
-        <p className="text-xs text-wind-tunnel-text-secondary">
-          💡 鼠标拖拽旋转视角 · 滚轮缩放 · 右键平移
+        <p className="text-xs text-wind-tunnel-text-secondary leading-relaxed">
+          💡 左键拖拽旋转 · 滚轮缩放 · 右键平移
+        </p>
+        <p className="text-[10px] text-wind-tunnel-text-secondary/60 mt-1">
+          🍎 macOS: 双指滑动平移 · 双指开合缩放
         </p>
       </div>
     </div>
