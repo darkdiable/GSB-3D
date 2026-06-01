@@ -19,18 +19,19 @@ export function WindTunnel({ visible = true }: WindTunnelProps) {
   
   const { WIDTH: width, HEIGHT: height, LENGTH: length } = WIND_TUNNEL_CONFIG;
   
-  // 创建玻璃墙面材质
+  // 创建玻璃墙面材质 - 优化透明度，让内部粒子更清晰可见
   const glassMaterial = useMemo(() => new THREE.MeshPhysicalMaterial({
-    color: COLORS.WIND_TUNNEL_GLASS,
+    color: new THREE.Color(COLORS.WIND_TUNNEL_GLASS).multiplyScalar(0.3),
     transparent: true,
-    opacity: 0.15,
-    roughness: 0.1,
-    metalness: 0.1,
-    transmission: 0.9,
-    thickness: 0.5,
-    clearcoat: 1.0,
-    clearcoatRoughness: 0.1,
+    opacity: 0.08,
+    roughness: 0.05,
+    metalness: 0.0,
+    transmission: 0.95,
+    ior: 1.0,
+    thickness: 0.1,
+    clearcoat: 0.0,
     side: THREE.DoubleSide,
+    depthWrite: false,
   }), []);
   
   // 创建边框线框几何体

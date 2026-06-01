@@ -26,34 +26,42 @@ export function ParticleFlow({ visible = true }: ParticleFlowProps) {
     isPlaying,
   });
   
-  // 粒子材质
+  // 粒子材质 - 增强视觉效果，在玻璃后面也清晰可见
   const particleMaterial = useMemo(() => new THREE.PointsMaterial({
-    size: 0.08,
+    size: 0.12,
     vertexColors: true,
     transparent: true,
-    opacity: 0.9,
+    opacity: 1.0,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
     sizeAttenuation: true,
   }), []);
   
-  // 创建拖尾线条几何体（用于表现流线效果）
+  // 创建拖尾线条几何体（用于表现流线效果）- 增加拖尾数量和长度
   const trailGeometry = useMemo(() => {
-    const trailCount = Math.floor(particleCount / 10);
-    const positions = new Float32Array(trailCount * 6); // 每条线2个点，每个点3个坐标
-    const colors = new Float32Array(trailCount * 6);
+    const trailCount = Math.floor(particleCount / 5);
+    const trailLength = 5;
+    const positions = new Float32Array(trailCount * trailLength * 2 * 3);
+    const colors = new Float32Array(trailCount * trailLength * 2 * 3);
     
     for (let i = 0; i < trailCount; i++) {
-      const i6 = i * 6;
-      positions[i6] = (Math.random() - 0.5) * 8;
-      positions[i6 + 1] = (Math.random() - 0.5) * 6;
-      positions[i6 + 2] = (Math.random() - 0.5) * 20;
-      positions[i6 + 3] = positions[i6];
-      positions[i6 + 4] = positions[i6 + 1];
-      positions[i6 + 5] = positions[i6 + 2] - 0.5;
+      const baseX = (Math.random() - 0.5) * 8;
+      const baseY = (Math.random() - 0.5) * 6;
+      const baseZ = (Math.random() - 0.5) * 20;
       
-      for (let j = 0; j < 6; j++) {
-        colors[i6 + j] = 0.5 + Math.random() * 0.5;
+      for (let j = 0; j < trailLength; j++) {
+        const idx = (i * trailLength + j) * 6;
+        positions[idx] = baseX;
+        positions[idx + 1] = baseY;
+        positions[idx + 2] = baseZ - j * 0.15;
+        positions[idx + 3] = baseX;
+        positions[idx + 4] = baseY;
+        positions[idx + 5] = baseZ - (j + 1) * 0.15;
+        
+        const colorIntensity = 1 - j / trailLength;
+        for (let k = 0; k < 6; k++) {
+          colors[idx + k] = 0.3 + Math.random() * 0.7;
+        }
       }
     }
     
@@ -66,7 +74,7 @@ export function ParticleFlow({ visible = true }: ParticleFlowProps) {
   const trailMaterial = useMemo(() => new THREE.LineBasicMaterial({
     vertexColors: true,
     transparent: true,
-    opacity: 0.4,
+    opacity: 0.6,
     blending: THREE.AdditiveBlending,
   }), []);
   
@@ -80,32 +88,44 @@ export function ParticleFlow({ visible = true }: ParticleFlowProps) {
     
     updateParticles(deltaTime * baseSpeed * 0.3);
     
-    // 更新拖尾线条
+    // 更新拖尾线条 - 增强的流线效果
     if (pointsRef.current) {
       const positions = geometry.attributes.position.array as Float32Array;
       const colors = geometry.attributes.color.array as Float32Array;
       const trailPositions = trailGeometry.attributes.position.array as Float32Array;
       const trailColors = trailGeometry.attributes.color.array as Float32Array;
       
-      const trailCount = trailPositions.length / 6;
+      const trailCount = Math.floor(particleCount / 5);
+      const trailLength = 5;
+      
       for (let i = 0; i < trailCount; i++) {
-        const sourceIdx = (i * 10) % particleCount;
+        const sourceIdx = (i * 5) % particleCount;
         const i3 = sourceIdx * 3;
-        const i6 = i * 6;
+        const px = positions[i3];
+        const py = positions[i3 + 1];
+        const pz = positions[i3 + 2];
+        const cr = colors[i3];
+        const cg = colors[i3 + 1];
+        const cb = colors[i3 + 2];
         
-        trailPositions[i6] = positions[i3];
-        trailPositions[i6 + 1] = positions[i3 + 1];
-        trailPositions[i6 + 2] = positions[i3 + 2];
-        trailPositions[i6 + 3] = positions[i3];
-        trailPositions[i6 + 4] = positions[i3 + 1];
-        trailPositions[i6 + 5] = positions[i3 + 2] - 0.3;
-        
-        trailColors[i6] = colors[i3];
-        trailColors[i6 + 1] = colors[i3 + 1];
-        trailColors[i6 + 2] = colors[i3 + 2];
-        trailColors[i6 + 3] = colors[i3] * 0.5;
-        trailColors[i6 + 4] = colors[i3 + 1] * 0.5;
-        trailColors[i6 + 5] = colors[i3 + 2] * 0.5;
+        for (let j = 0; j < trailLength; j++) {
+          const idx = (i * trailLength + j) * 6;
+          const fadeFactor = 1 - j / trailLength;
+          
+          trailPositions[idx] = px;
+          trailPositions[idx + 1] = py;
+          trailPositions[idx + 2] = pz - j * 0.12;
+          trailPositions[idx + 3] = px;
+          trailPositions[idx + 4] = py;
+          trailPositions[idx + 5] = pz - (j + 1) * 0.12;
+          
+          trailColors[idx] = cr * fadeFactor;
+          trailColors[idx + 1] = cg * fadeFactor;
+          trailColors[idx + 2] = cb * fadeFactor;
+          trailColors[idx + 3] = cr * fadeFactor * 0.5;
+          trailColors[idx + 4] = cg * fadeFactor * 0.5;
+          trailColors[idx + 5] = cb * fadeFactor * 0.5;
+        }
       }
       
       trailGeometry.attributes.position.needsUpdate = true;

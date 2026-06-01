@@ -106,19 +106,20 @@ function SceneContent() {
         zoomSpeed={1.0}
       />
       
-      {/* 后处理效果 */}
+      {/* 后处理效果 - 增强Bloom让粒子更醒目 */}
       <EffectComposer>
-        {/* 发光效果 */}
+        {/* 发光效果 - 让粒子流线在玻璃后也清晰可见 */}
         <Bloom
-          luminanceThreshold={0.2}
-          luminanceSmoothing={0.9}
-          height={300}
-          intensity={0.8}
+          luminanceThreshold={0.1}
+          luminanceSmoothing={0.8}
+          height={400}
+          intensity={1.5}
+          mipmapBlur
         />
         {/* 暗角效果 */}
         <Vignette
-          offset={0.5}
-          darkness={0.6}
+          offset={0.4}
+          darkness={0.5}
         />
       </EffectComposer>
     </>
