@@ -19,23 +19,16 @@ import { COLORS } from '../utils/colors';
  * 场景内部组件 - 可以访问Three.js上下文
  */
 function SceneContent() {
-  const { autoRotate, showWindTunnel, showAircraft, showParticles } = useSceneStore();
+  const { autoRotate, showWindTunnel, showAircraft, showParticles, setAutoRotate } = useSceneStore();
   const controlsRef = useRef<any>(null);
   const { camera } = useThree();
   
-  // 相机自动旋转
-  useFrame((state) => {
-    if (autoRotate && controlsRef.current) {
-      const time = state.clock.elapsedTime * 0.1;
-      const radius = 18;
-      const height = 6 + Math.sin(time * 0.5) * 2;
-      
-      camera.position.x = Math.cos(time) * radius;
-      camera.position.y = height;
-      camera.position.z = Math.sin(time) * radius;
-      camera.lookAt(0, 0, 0);
+  // 当用户开始交互时自动停止自动旋转
+  const handleStart = () => {
+    if (autoRotate) {
+      setAutoRotate(false);
     }
-  });
+  };
   
   return (
     <>
@@ -102,20 +95,15 @@ function SceneContent() {
         maxPolarAngle={Math.PI / 2 + 0.3}
         minPolarAngle={0.2}
         enablePan={true}
-        enabled={!autoRotate}
-        mouseButtons={{
-          LEFT: THREE.MOUSE.ROTATE,
-          MIDDLE: THREE.MOUSE.DOLLY,
-          RIGHT: THREE.MOUSE.PAN,
-        }}
-        touches={{
-          ONE: THREE.TOUCH.ROTATE,
-          TWO: THREE.TOUCH.DOLLY_PAN,
-        }}
+        enableRotate={true}
+        enableZoom={true}
+        autoRotate={autoRotate}
+        autoRotateSpeed={0.5}
+        onStart={handleStart}
         screenSpacePanning={true}
         panSpeed={1.0}
-        rotateSpeed={0.5}
-        zoomSpeed={0.8}
+        rotateSpeed={0.8}
+        zoomSpeed={1.0}
       />
       
       {/* 后处理效果 */}
