@@ -15,23 +15,10 @@ class CameraController:
         self.geo = ENGINE_GEOMETRY
         self.pos = ENGINE_POSITION
         
-        self.default_camera_pos = vector(0, 2, -15)
-        self.default_camera_axis = vector(0, 0, 1)
-        self.default_camera_up = vector(0, 1, 0)
+        self.default_range = SCENE_CONFIG["range"]
+        self.default_center = SCENE_CONFIG["center"]
         
         self.current_focus = None
-        
-        self._setup_camera_controls()
-    
-    def _setup_camera_controls(self):
-        self.scene.userzoom = True
-        self.scene.userspin = True
-        self.scene.userpan = True
-        
-        self.scene.range = SCENE_CONFIG["range"]
-        self.scene.forward = SCENE_CONFIG["forward"]
-        self.scene.up = SCENE_CONFIG["up"]
-        self.scene.center = SCENE_CONFIG["center"]
     
     def focus_on_cylinder(self, cylinder_index):
         if cylinder_index is None:
@@ -52,10 +39,8 @@ class CameraController:
     
     def reset(self):
         self.current_focus = None
-        self.scene.center = SCENE_CONFIG["center"]
-        self.scene.range = SCENE_CONFIG["range"]
-        self.scene.forward = SCENE_CONFIG["forward"]
-        self.scene.up = SCENE_CONFIG["up"]
+        self.scene.center = self.default_center
+        self.scene.range = self.default_range
     
     def update(self):
         if self.current_focus is not None:

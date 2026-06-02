@@ -25,11 +25,10 @@ def setup_scene():
     scene.background = SCENE_CONFIG["background"]
     scene.autoscale = False
     scene.range = SCENE_CONFIG["range"]
-    scene.forward = SCENE_CONFIG["forward"]
-    scene.up = SCENE_CONFIG["up"]
     scene.center = SCENE_CONFIG["center"]
-    scene.userzoom = True
+    scene.up = SCENE_CONFIG["up"]
     scene.userspin = True
+    scene.userzoom = True
     scene.userpan = True
     
     return scene
