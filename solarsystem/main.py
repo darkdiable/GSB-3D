@@ -79,14 +79,6 @@ def main():
 
     scene.bind('keydown', lambda evt: handle_keypress(evt, solar_system))
 
-    def on_scroll(evt):
-        if hasattr(evt, 'delta') and evt.delta:
-            camera.handle_scroll(evt.delta)
-        elif hasattr(evt, 'event') and 'wheel' in str(evt.event).lower():
-            camera.handle_scroll(-1)
-
-    scene.bind('scroll', on_scroll)
-
     print("太阳系模拟已启动！")
     print("请在浏览器中查看3D场景")
     print("=" * 60)
@@ -96,6 +88,7 @@ def main():
             rate(60)
             dt = 1 / 60
             solar_system.update(dt)
+            camera.update()
     except KeyboardInterrupt:
         print("\n模拟已停止")
         sys.exit(0)

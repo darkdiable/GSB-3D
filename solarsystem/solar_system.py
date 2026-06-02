@@ -134,7 +134,7 @@ class SolarSystem:
         self.sun.rotate(angle=0.01 * adjusted_dt, axis=vector(0, 1, 0))
 
         for planet in self.planets:
-            planet.update(dt, self.speed_multiplier)
+            planet.update(adjusted_dt)
 
         self._update_info_panel()
 

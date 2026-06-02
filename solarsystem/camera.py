@@ -1,5 +1,5 @@
 import math
-from vpython import vector
+from vpython import vector, rate
 
 
 class CameraController:
@@ -9,46 +9,53 @@ class CameraController:
         self.scene.userpan = False
         self.scene.userzoom = False
 
-        self.active_button = None
-        self.prev_x = 0
-        self.prev_y = 0
+        self.is_rotating = False
+        self.is_panning = False
+        self.last_mouse_pos = None
 
-        self.rotate_sensitivity = 0.005
-        self.pan_sensitivity = 0.002
-        self.zoom_sensitivity = 1.05
+        self.rotate_sensitivity = 0.008
+        self.pan_sensitivity = 0.015
+        self.zoom_sensitivity = 1.02
 
-        self.scene.bind('mousedown', self._on_mousedown)
-        self.scene.bind('mousemove', self._on_mousemove)
-        self.scene.bind('mouseup', self._on_mouseup)
+        self.initial_forward = vector(scene.forward.x, scene.forward.y, scene.forward.z)
+        self.initial_center = vector(scene.center.x, scene.center.y, scene.center.z)
+        self.initial_range = scene.range
 
-    def _on_mousedown(self, evt):
-        self.active_button = evt.button
-        self.prev_x = evt.pos.x
-        self.prev_y = evt.pos.y
+    def update(self):
+        mouse = self.scene.mouse
 
-    def _on_mousemove(self, evt):
-        if self.active_button is None:
-            return
+        if mouse.press:
+            if mouse.button == 'left':
+                self.is_rotating = True
+                self.is_panning = False
+                self.last_mouse_pos = vector(mouse.pos.x, mouse.pos.y, 0)
+            elif mouse.button in ('right', 'middle'):
+                self.is_rotating = False
+                self.is_panning = True
+                self.last_mouse_pos = vector(mouse.pos.x, mouse.pos.y, 0)
 
-        dx = evt.pos.x - self.prev_x
-        dy = evt.pos.y - self.prev_y
+        if mouse.release:
+            self.is_rotating = False
+            self.is_panning = False
+            self.last_mouse_pos = None
 
-        if self.active_button == 'left':
+        if self.is_rotating and self.last_mouse_pos is not None:
+            dx = mouse.pos.x - self.last_mouse_pos.x
+            dy = mouse.pos.y - self.last_mouse_pos.y
             self._rotate(dx, dy)
-        elif self.active_button in ('right', 'middle'):
+            self.last_mouse_pos = vector(mouse.pos.x, mouse.pos.y, 0)
+
+        if self.is_panning and self.last_mouse_pos is not None:
+            dx = mouse.pos.x - self.last_mouse_pos.x
+            dy = mouse.pos.y - self.last_mouse_pos.y
             self._pan(dx, dy)
+            self.last_mouse_pos = vector(mouse.pos.x, mouse.pos.y, 0)
 
-        self.prev_x = evt.pos.x
-        self.prev_y = evt.pos.y
-
-    def _on_mouseup(self, evt):
-        self.active_button = None
-
-    def handle_scroll(self, delta):
-        if delta > 0:
-            self.scene.range /= self.zoom_sensitivity
-        elif delta < 0:
-            self.scene.range *= self.zoom_sensitivity
+        if hasattr(mouse, 'wheel') and mouse.wheel != 0:
+            if mouse.wheel > 0:
+                self.scene.range /= self.zoom_sensitivity
+            else:
+                self.scene.range *= self.zoom_sensitivity
 
     def _rotate(self, dx, dy):
         yaw = -dx * self.rotate_sensitivity
@@ -66,6 +73,10 @@ class CameraController:
         new_right = self._rotate_vector(right, yaw, up)
 
         new_forward = self._rotate_vector(new_forward, pitch, new_right)
+
+        max_pitch = 0.95
+        if abs(new_forward.dot(up)) > max_pitch:
+            new_forward = forward
 
         self.scene.forward = new_forward
 

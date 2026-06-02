@@ -79,20 +79,20 @@ class Planet:
         z = self.sun_pos.z + self.orbit_radius * math.sin(self.angle)
         return vector(x, self.sun_pos.y, z)
 
-    def update(self, dt, speed_multiplier):
+    def update(self, adjusted_dt):
         orbit_speed = (2 * math.pi) / (self.orbit_period / EARTH_ORBIT_PERIOD)
-        self.angle += orbit_speed * dt * speed_multiplier
+        self.angle += orbit_speed * adjusted_dt
 
         rotation_speed = (2 * math.pi) / (self.rotation_period / EARTH_ORBIT_PERIOD)
-        self.rotation_angle += rotation_speed * dt * speed_multiplier
+        self.rotation_angle += rotation_speed * adjusted_dt
 
         new_pos = self._calculate_position()
         self.sphere.pos = new_pos
-        self.sphere.rotate(angle=rotation_speed * dt * speed_multiplier, axis=vector(0, 1, 0))
+        self.sphere.rotate(angle=rotation_speed * adjusted_dt, axis=vector(0, 1, 0))
 
         if self.ring is not None:
             self.ring.pos = new_pos
-            self.ring.rotate(angle=rotation_speed * dt * speed_multiplier * 0.1, axis=vector(0, 1, 0))
+            self.ring.rotate(angle=rotation_speed * adjusted_dt * 0.1, axis=vector(0, 1, 0))
 
         self.label.pos = new_pos
 
