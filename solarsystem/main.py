@@ -33,7 +33,7 @@ def setup_scene():
     return scene
 
 
-def handle_keypress(evt, solar_system):
+def handle_keypress(evt, solar_system, camera):
     key = evt.key
     if key == ' ':
         running = solar_system.toggle_running()
@@ -60,6 +60,7 @@ def handle_keypress(evt, solar_system):
         print(f"Stars {'shown' if show else 'hidden'}")
     elif key == '0':
         solar_system.reset()
+        camera.reset()
         print("Simulation reset")
     elif key == 'q' or key == 'Q':
         print("Quitting...")
@@ -77,7 +78,7 @@ def main():
     solar_system = SolarSystem(scene)
     camera = CameraController(scene)
 
-    scene.bind('keydown', lambda evt: handle_keypress(evt, solar_system))
+    scene.bind('keydown', lambda evt: handle_keypress(evt, solar_system, camera))
 
     print("太阳系模拟已启动！")
     print("请在浏览器中查看3D场景")
