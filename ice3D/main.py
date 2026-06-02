@@ -35,7 +35,7 @@ def setup_scene():
     return scene
 
 
-def handle_keypress(evt, engine, camera):
+def handle_keypress(evt, engine, camera, app_state):
     key = evt.key
     
     if key == ' ':
@@ -75,8 +75,8 @@ def handle_keypress(evt, engine, camera):
         print("Simulation reset")
     
     elif key == 'q' or key == 'Q':
-        print("Quitting...")
-        sys.exit(0)
+        print("\nQuitting...")
+        app_state["should_exit"] = True
 
 
 def main():
@@ -107,10 +107,12 @@ def main():
     print("Initializing camera controller...")
     camera = CameraController(scene)
     
+    app_state = {"should_exit": False}
+    
     print()
     print("绑定键盘事件...")
     print("Binding keyboard events...")
-    scene.bind('keydown', lambda evt: handle_keypress(evt, engine, camera))
+    scene.bind('keydown', lambda evt: handle_keypress(evt, engine, camera, app_state))
     
     print()
     print("=" * 70)
@@ -129,6 +131,14 @@ def main():
         while True:
             rate(fps)
             dt = 1.0 / fps
+            
+            if app_state["should_exit"]:
+                print()
+                print("=" * 70)
+                print("模拟已停止")
+                print("Simulation stopped")
+                print("=" * 70)
+                sys.exit(0)
             
             engine.update(dt)
             labels.update()
