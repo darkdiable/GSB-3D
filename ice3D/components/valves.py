@@ -36,7 +36,7 @@ class Valve:
         self._create_valve()
     
     def _create_valve(self):
-        color = self.colors["intake_valve"] if self.valve_type == "intake" else self.colors["exhaust_valve"]
+        valve_color = self.colors["intake_valve"] if self.valve_type == "intake" else self.colors["exhaust_valve"]
         
         self.valve_stem = cylinder(
             pos=vector(
@@ -47,7 +47,7 @@ class Valve:
             axis=vector(0, 1, 0),
             radius=self.geo["valve_stem_radius"],
             length=self.geo["valve_length"],
-            color=color,
+            color=valve_color,
         )
         self.components.append(self.valve_stem)
         
@@ -58,7 +58,7 @@ class Valve:
                 self.pos["center"].z + self.z_offset
             ),
             radius=self.geo["valve_radius"],
-            color=color,
+            color=valve_color,
         )
         self.components.append(self.valve_head)
         
@@ -74,7 +74,7 @@ class Valve:
                 axis=vector(0, 1, 0),
                 radius=self.geo["valve_radius"],
                 length=0.02,
-                color=color.gray(0.5),
+                color=self.colors["crankshaft"],
                 opacity=0.7,
             )
             self.components.append(spring_ring)
