@@ -12,6 +12,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from vpython import scene, rate, vector, color
 
 from solarsystem.solar_system import SolarSystem
+from solarsystem.camera import CameraController
 
 
 def setup_scene():
@@ -25,9 +26,9 @@ def setup_scene():
     scene.forward = vector(0, -0.3, -1)
     scene.up = vector(0, 1, 0)
     scene.center = vector(0, 0, 0)
-    scene.userzoom = True
-    scene.userspin = True
-    scene.userpan = True
+    scene.userzoom = False
+    scene.userspin = False
+    scene.userpan = False
 
     return scene
 
@@ -74,8 +75,17 @@ def main():
 
     scene = setup_scene()
     solar_system = SolarSystem(scene)
+    camera = CameraController(scene)
 
     scene.bind('keydown', lambda evt: handle_keypress(evt, solar_system))
+
+    def on_scroll(evt):
+        if hasattr(evt, 'delta') and evt.delta:
+            camera.handle_scroll(evt.delta)
+        elif hasattr(evt, 'event') and 'wheel' in str(evt.event).lower():
+            camera.handle_scroll(-1)
+
+    scene.bind('scroll', on_scroll)
 
     print("太阳系模拟已启动！")
     print("请在浏览器中查看3D场景")

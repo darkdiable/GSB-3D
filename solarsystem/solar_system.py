@@ -99,7 +99,7 @@ class SolarSystem:
             "  [S]     显示/隐藏星空 (Toggle Stars)\n"
             "  [0]     重置 (Reset)\n"
             "  [Q]     退出 (Quit)\n\n"
-            "鼠标拖拽: 旋转视角 | 滚轮: 缩放 | 右键拖拽: 平移"
+            "鼠标左键拖拽: 旋转视角 | 右键拖拽: 平移 | 滚轮: 缩放"
         )
 
         self.control_panel = label(
