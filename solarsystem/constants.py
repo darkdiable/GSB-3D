@@ -1,0 +1,113 @@
+from vpython import color
+
+SUN_DATA = {
+    "name": "太阳",
+    "name_en": "Sun",
+    "radius": 3.5,
+    "color": color.yellow,
+    "emissive": True,
+    "texture": None,
+}
+
+PLANET_DATA = [
+    {
+        "name": "水星",
+        "name_en": "Mercury",
+        "radius": 0.4,
+        "orbit_radius": 6.0,
+        "orbit_period": 88.0,
+        "rotation_period": 58.6,
+        "color": color.gray(0.7),
+        "texture": None,
+        "has_ring": False,
+    },
+    {
+        "name": "金星",
+        "name_en": "Venus",
+        "radius": 0.9,
+        "orbit_radius": 9.0,
+        "orbit_period": 224.7,
+        "rotation_period": 243.0,
+        "color": color.orange,
+        "texture": None,
+        "has_ring": False,
+    },
+    {
+        "name": "地球",
+        "name_en": "Earth",
+        "radius": 1.0,
+        "orbit_radius": 12.5,
+        "orbit_period": 365.25,
+        "rotation_period": 1.0,
+        "color": color.blue,
+        "texture": None,
+        "has_ring": False,
+    },
+    {
+        "name": "火星",
+        "name_en": "Mars",
+        "radius": 0.5,
+        "orbit_radius": 16.0,
+        "orbit_period": 687.0,
+        "rotation_period": 1.03,
+        "color": color.red,
+        "texture": None,
+        "has_ring": False,
+    },
+    {
+        "name": "木星",
+        "name_en": "Jupiter",
+        "radius": 2.5,
+        "orbit_radius": 22.0,
+        "orbit_period": 4333.0,
+        "rotation_period": 0.41,
+        "color": color.orange,
+        "texture": None,
+        "has_ring": False,
+    },
+    {
+        "name": "土星",
+        "name_en": "Saturn",
+        "radius": 2.1,
+        "orbit_radius": 28.0,
+        "orbit_period": 10759.0,
+        "rotation_period": 0.44,
+        "color": color.yellow,
+        "texture": None,
+        "has_ring": True,
+        "ring_inner": 2.5,
+        "ring_outer": 4.0,
+        "ring_color": color.gray(0.8),
+    },
+    {
+        "name": "天王星",
+        "name_en": "Uranus",
+        "radius": 1.5,
+        "orbit_radius": 34.0,
+        "orbit_period": 30687.0,
+        "rotation_period": 0.72,
+        "color": color.cyan,
+        "texture": None,
+        "has_ring": True,
+        "ring_inner": 1.8,
+        "ring_outer": 2.8,
+        "ring_color": color.gray(0.7),
+    },
+    {
+        "name": "海王星",
+        "name_en": "Neptune",
+        "radius": 1.4,
+        "orbit_radius": 39.0,
+        "orbit_period": 60190.0,
+        "rotation_period": 0.67,
+        "color": color.blue,
+        "texture": None,
+        "has_ring": False,
+    },
+]
+
+EARTH_ORBIT_PERIOD = 365.25
+SIMULATION_SPEED = 50.0
+ORBIT_LINE_THICKNESS = 0.03
+STAR_COUNT = 500
+STAR_DISTANCE = 80
