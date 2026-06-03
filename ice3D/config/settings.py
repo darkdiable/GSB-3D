@@ -168,6 +168,7 @@ CONTROLS = {
     "down": "减速 (Speed Down)",
     "l": "显示/隐藏标签 (Toggle Labels)",
     "x": "显示/隐藏剖视图 (Toggle Cutaway)",
+    "r": "自动旋转视角 (Auto Rotate View)",
     "1-4": "聚焦单个气缸 (Focus on Cylinder 1-4)",
     "0": "重置视角 (Reset View)",
     "q": "退出 (Quit)",

@@ -57,6 +57,10 @@ def handle_keypress(evt, engine, camera, app_state):
         cutaway = engine.toggle_cutaway()
         print(f"Cutaway view: {'enabled' if cutaway else 'disabled'}")
     
+    elif key == 'r' or key == 'R':
+        rotating = camera.toggle_auto_rotate()
+        print(f"Auto rotate: {'enabled' if rotating else 'disabled'}")
+    
     elif key in ['1', '2', '3', '4']:
         cylinder_index = int(key) - 1
         if engine.focus_cylinder == cylinder_index:
@@ -121,7 +125,7 @@ def main():
     print()
     print("按键提示 (Key Tips):")
     print("  [空格] 暂停/继续 | [↑/↓] 加速/减速 | [L] 标签 | [X] 剖视图")
-    print("  [1-4] 聚焦气缸 | [0] 重置 | [Q] 退出")
+    print("  [R] 自动旋转 | [1-4] 聚焦气缸 | [0] 重置 | [Q] 退出")
     print()
     
     fps = ANIMATION_CONFIG["fps"]
@@ -142,7 +146,7 @@ def main():
             engine.update(dt)
             labels.update()
             control_panel.update()
-            camera.update()
+            camera.update(dt)
     
     except KeyboardInterrupt:
         print()

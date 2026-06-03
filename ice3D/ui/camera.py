@@ -4,9 +4,12 @@
 Camera Controller - handles camera movement and view controls
 """
 
+import math
 from vpython import vector, scene
 
 from ice3D.config.settings import SCENE_CONFIG, ENGINE_GEOMETRY, ENGINE_POSITION
+
+AUTO_ROTATE_SPEED = 0.3
 
 
 class CameraController:
@@ -19,6 +22,18 @@ class CameraController:
         self.default_center = SCENE_CONFIG["center"]
         
         self.current_focus = None
+        self.auto_rotate = False
+        self.rotation_angle = 0.0
+    
+    def toggle_auto_rotate(self):
+        self.auto_rotate = not self.auto_rotate
+        if self.auto_rotate:
+            self.scene.userspin = False
+            fwd = self.scene.forward
+            self.rotation_angle = math.atan2(-fwd.x, -fwd.z)
+        else:
+            self.scene.userspin = True
+        return self.auto_rotate
     
     def focus_on_cylinder(self, cylinder_index):
         if cylinder_index is None:
@@ -41,8 +56,11 @@ class CameraController:
         self.current_focus = None
         self.scene.center = self.default_center
         self.scene.range = self.default_range
+        self.auto_rotate = False
+        self.rotation_angle = 0.0
+        self.scene.userspin = True
     
-    def update(self):
+    def update(self, dt=1/60):
         if self.current_focus is not None:
             x_offset = (self.current_focus - 1.5) * self.geo["cylinder_spacing"]
             target_center = vector(
@@ -52,3 +70,18 @@ class CameraController:
             )
             
             self.scene.center = self.scene.center + 0.05 * (target_center - self.scene.center)
+        
+        if self.auto_rotate:
+            self.rotation_angle += AUTO_ROTATE_SPEED * dt
+            
+            current_center = self.scene.center
+            current_range = self.scene.range
+            
+            self.scene.forward = vector(
+                math.sin(self.rotation_angle),
+                -0.3,
+                math.cos(self.rotation_angle)
+            )
+            
+            self.scene.center = current_center
+            self.scene.range = current_range
