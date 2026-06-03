@@ -1,0 +1,39 @@
+class Config:
+    WINDOW_WIDTH = 1200
+    WINDOW_HEIGHT = 800
+    WINDOW_TITLE = "3D高速公路行车模拟系统"
+    
+    ROAD_LENGTH = 2000.0
+    ROAD_WIDTH = 8.0
+    LANE_WIDTH = 3.5
+    LANE_COUNT = 3
+    LINE_WIDTH = 0.1
+    
+    SPEED_LIMIT = 120.0
+    SPEED_LIMIT_KMH = 120
+    
+    ACCELERATION = 50.0
+    BRAKE_DECELERATION = 80.0
+    TURN_SPEED = 2.0
+    MAX_SPEED = 200.0
+    
+    CAMERA_DISTANCE = 15.0
+    CAMERA_HEIGHT = 6.0
+    CAMERA_FOLLOW_SPEED = 5.0
+    
+    VEHICLE_LENGTH = 2.0
+    VEHICLE_WIDTH = 1.0
+    VEHICLE_HEIGHT = 0.8
+    
+    LANE_DETECTION_TOLERANCE = 0.1
+    LINE_CROSSING_THRESHOLD = 0.05
+    
+    VIOLATION_DISPLAY_TIME = 3.0
+    
+    SKY_COLOR = (0.3, 0.6, 0.9, 1)
+    ROAD_COLOR = (0.2, 0.2, 0.2, 1)
+    GRASS_COLOR = (0.3, 0.7, 0.3, 1)
+    LINE_COLOR = (1, 1, 1, 1)
+    
+    FONT_SIZE = 16
+    FONT_COLOR = (1, 1, 1, 1)
