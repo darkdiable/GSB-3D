@@ -55,16 +55,16 @@ class VehicleController:
         
         self.turn_rate = 0.0
         if self.is_turning_left:
-            self.turn_rate = -Config.TURN_SPEED
-        if self.is_turning_right:
             self.turn_rate = Config.TURN_SPEED
+        if self.is_turning_right:
+            self.turn_rate = -Config.TURN_SPEED
         
         if self.speed > 1.0:
             self.heading += self.turn_rate * dt * (self.speed / 50.0)
         
         heading_rad = self.heading * 3.14159 / 180.0
         self.velocity.setX(self.speed * 1.0)
-        self.velocity.setY(self.speed * heading_rad * 0.5)
+        self.velocity.setY(self.speed * -heading_rad * 0.5)
         
         self.position += self.velocity * dt
         
